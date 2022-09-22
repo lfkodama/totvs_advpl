@@ -1,6 +1,6 @@
 #include "totvs.ch"
 
 User Function GeraXmlNfs()
-    Local cTitle := "Teste"
+    Local cTitle := "GeraXmlNfs"
     MessageBox(cTitle, "Teste", 48)
 Return
