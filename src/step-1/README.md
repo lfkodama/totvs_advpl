@@ -5,8 +5,8 @@
 ### Requisitos:
 
 * Tela de parâmetros solicitando intervalo de datas de emissão (De/Até)
-* Diretório para geração do arquivo
-* O nome do arquivo de ser definido automaticamente: nfs_20220901_20220930.xml
+* Diretório para geração dos arquivos (um para cada NF)
+* Os nomes dos arquivos devem ser definidos automaticamente: nfs_000123456-1.xml
 
 ### Layout do XML:
 
