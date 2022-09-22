@@ -1,0 +1,15 @@
+/docker/
+/src/drafts/
+.env
+.env.*
+.vscode/*
+.DS_Store
+.vscode
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+*.code-workspace
