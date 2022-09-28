@@ -73,7 +73,10 @@ Return oSql
 // Função para montar o conteúdo do arquivo XML
 Static Function setXmlFile(oSql)
     Local cXmlHeader := ""
-    
+    Local cXmlFile := ""
+    Local oXmlFile := Nil 
+
+
     while oSql:notIsEof()
         cXmlHeader := "<notafiscal>" + CRLF
         cXmlHeader += "<numero>" + oSql:getValue("F2_DOC") + "<numero>" + CRLF
@@ -86,8 +89,14 @@ Static Function setXmlFile(oSql)
         cXmlHeader += "    <uf>" + AllTrim(oSql:getValue("A1_EST")) + "</uf>" + CRLF
         cXmlHeader += "</cliente>"
         
-        MESSAGEBOX( cXmlHeader, "Trouxe da Função setXmlFile ", 48 )
-        
+        // Monta o path e nome do arquivo XML
+        cXmlFile := AllTrim(oParamBox:getValue("XmlPath")) + "\" + AllTrim(oSql:getValue("F2_DOC")) + "-" + AllTrim(oSql:getValue("F2_SERIE")) + ".xml"
+        oXmlFile := LibFileObj():newLibFileObj(cXmlFile)
+
+        // Grava o conteúdo do XML
+        oXmlFile:writeLine(cXmlHeader)
+
+
         oSql:skip()
     EndDo
 
