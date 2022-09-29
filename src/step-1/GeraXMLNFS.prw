@@ -3,13 +3,11 @@
 
 #DEFINE CRLF chr(13)+chr(10)  // Constante para quebra de linha
 
-
 User Function GeraXmlNfs()
     Local cTitle := "GeraXmlNfs"
     Private oParamBox  := LibParamBoxObj():newLibParamBoxObj(cTitle)
     Private oSql := LibSqlObj():NewLibSqlObj()
-
-
+    
     // Chama a tela de entrada de parâmetros
     ParamsBox()
     
@@ -52,9 +50,7 @@ Static Function ParamsBox()
 Return
 
 
-
-
-// Função para buscar os dados das NFS
+// Função para buscar os dados do cabeçalho das NFS
 Static Function GetNfsData(oParamBox)
     Local cQuery := ""
 
@@ -66,28 +62,45 @@ Static Function GetNfsData(oParamBox)
 
     oSql:newAlias(cQuery)
     oSql:setDateFields({"F2_EMISSAO"})
-
 Return oSql
+
+
+// Função para buscar os dados dos items das NFS
+Static Function GetNfsItems(oSql)
+    Local cQuery := ""
+
+    cQuery := " SELECT D2_ITEM, D2_COD, D2_UM, B1_DESC, D2_QUANT, D2_PRCVEN, D2_TOTAL, D2_CF "
+    cQuery += "     FROM SD2990 SD2 "
+    cQuery += "         LEFT JOIN SB1990 SB1 ON B1_COD = D2_COD "
+    cQuery += "     WHERE D2_DOC = '" + AllTrim(oSql:getValue("F2_DOC")) + "' AND D2_SERIE = '" + AllTrim(oSql:getValue("F2_SERIE")) + "' " 
+    cQuery += " ORDER BY D2_DOC, D2_ITEM ASC "
+    
+    oSql2:newAlias(cQuery)
+
+Return oSql2
 
 
 // Função para montar o conteúdo do arquivo XML
 Static Function setXmlFile(oSql)
     Local cXmlHeader := ""
+    Local cXmlBody := ""
     Local cXmlFile := ""
     Local oXmlFile := Nil 
-
-
+    Private oSql2 := LibSqlObj():NewLibSqlObj()
+    
+    // Monta a seção de cabeçalho do arquivo XML
     while oSql:notIsEof()
         cXmlHeader := "<notafiscal>" + CRLF
-        cXmlHeader += "<numero>" + oSql:getValue("F2_DOC") + "<numero>" + CRLF
-        cXmlHeader += "<serie>" + AllTrim(oSql:getValue("F2_SERIE")) + "<serie>" + CRLF
-        cXmlHeader += "<emissao>" + AllTrim(oSql:getValue("DToC(F2_EMISSAO)")) + "<emissao>" + CRLF
+        cXmlHeader += "<numero>" + oSql:getValue("F2_DOC") + "</numero>" + CRLF
+        cXmlHeader += "<serie>" + AllTrim(oSql:getValue("F2_SERIE")) + "</serie>" + CRLF
+        cXmlHeader += "<emissao>" + AllTrim(oSql:getValue("DToC(F2_EMISSAO)")) + "</emissao>" + CRLF
         cXmlHeader += "<cliente>" + CRLF
         cXmlHeader += "    <cgc>" + AllTrim(oSql:getValue("A1_CGC")) + "</cgc>" + CRLF
         cXmlHeader += "    <razaoSocial>" + AllTrim(oSql:getValue("A1_NOME")) + "</razaoSocial>" + CRLF
         cXmlHeader += "    <municipio>" + AllTrim(oSql:getValue("A1_MUN")) + "</municipio>" + CRLF
         cXmlHeader += "    <uf>" + AllTrim(oSql:getValue("A1_EST")) + "</uf>" + CRLF
-        cXmlHeader += "</cliente>"
+        cXmlHeader += "</cliente>" + CRLF
+        cXmlHeader += "<items>"
         
         // Monta o path e nome do arquivo XML
         cXmlFile := AllTrim(oParamBox:getValue("XmlPath")) + "\" + AllTrim(oSql:getValue("F2_DOC")) + "-" + AllTrim(oSql:getValue("F2_SERIE")) + ".xml"
@@ -96,14 +109,32 @@ Static Function setXmlFile(oSql)
         // Grava o conteúdo do XML
         oXmlFile:writeLine(cXmlHeader)
 
+        // Busca os items da NF e monta as tags XML
+        GetNfsItems(oSql)
+
+        // Monta a seção dos items de produtos da NFS no arquivo XML
+        while oSql2:notIsEof()
+            cXmlBody += "    <item>" + CRLF
+            cXmlBody += "       <codigo>" + AllTrim(oSql2:getValue("D2_COD")) + "</codigo>" + CRLF
+            cXmlBody += "       <descricao>" + AllTrim(oSql2:getValue("B1_DESC")) + "</descricao>" + CRLF
+            cXmlBody += "       <quantidade>" + AllTrim(Str(oSql2:getValue("D2_QUANT"),6,2)) + "</quantidade>" + CRLF
+            cXmlBody += "       <preco>" + AllTrim(Str(oSql2:getValue("D2_PRCVEN"),8,2)) + "</preco>" + CRLF
+            cXmlBody += "       <total>" + AllTrim(Str(oSql2:getValue("D2_TOTAL"),8,2)) + "</total>" + CRLF
+            cXmlBody += "       <cfop>" + AllTrim(oSql2:getValue("D2_CF")) + "</cfop>" + CRLF
+            cXmlBody += "    </item>" + CRLF
+            oSql2:skip()
+        EndDo
+        oSql2:close()
+
+        cXmlBody += "</items>" + CRLF
+        cXmlBody += "</notafiscal>" 
+        oXmlFile:writeLine(cXmlBody)
+        cXmlBody = ""
 
         oSql:skip()
+        
     EndDo
 
     oSql:close()
 
-Return cXmlHeader
-
-
-
-
+Return
