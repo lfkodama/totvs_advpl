@@ -17,6 +17,8 @@ User Function GeraXmlNfs()
     // Monta a Header do arquivo XML
     setXmlFile(oSql)
 
+    MessageBox("Arquivos gerados com sucesso", "Confirmação de geração de arquivos", 64)
+
 Return
 
 
@@ -82,6 +84,7 @@ Return oSql2
 
 // Função para montar o conteúdo do arquivo XML
 Static Function setXmlFile(oSql)
+    nAction := 0
     Local cXmlHeader := ""
     Local cXmlBody := ""
     Local cXmlFile := ""
@@ -104,37 +107,50 @@ Static Function setXmlFile(oSql)
         
         // Monta o path e nome do arquivo XML
         cXmlFile := AllTrim(oParamBox:getValue("XmlPath")) + "\" + AllTrim(oSql:getValue("F2_DOC")) + "-" + AllTrim(oSql:getValue("F2_SERIE")) + ".xml"
+       
+        // Cria o arquivo XML
         oXmlFile := LibFileObj():newLibFileObj(cXmlFile)
+       
+        // Verifica se o XML da NFS já existe. Caso existir, pergunta se o usuário deseja apagar o arquivo e gerar um novo, ou finalizar.
+        If !oXmlFile:exists(cXmlFile)
+            // Grava o conteúdo do XML
+            oXmlFile:writeLine(cXmlHeader)
 
-        // Grava o conteúdo do XML
-        oXmlFile:writeLine(cXmlHeader)
+            // Busca os items da NF e monta as tags XML
+            GetNfsItems(oSql)
 
-        // Busca os items da NF e monta as tags XML
-        GetNfsItems(oSql)
+            // Monta a seção dos items de produtos da NFS no arquivo XML
+            while oSql2:notIsEof()
+                cXmlBody += "    <item>" + CRLF
+                cXmlBody += "       <codigo>" + AllTrim(oSql2:getValue("D2_COD")) + "</codigo>" + CRLF
+                cXmlBody += "       <descricao>" + AllTrim(oSql2:getValue("B1_DESC")) + "</descricao>" + CRLF
+                cXmlBody += "       <quantidade>" + AllTrim(Str(oSql2:getValue("D2_QUANT"),6,2)) + "</quantidade>" + CRLF
+                cXmlBody += "       <preco>" + AllTrim(Str(oSql2:getValue("D2_PRCVEN"),8,2)) + "</preco>" + CRLF
+                cXmlBody += "       <total>" + AllTrim(Str(oSql2:getValue("D2_TOTAL"),8,2)) + "</total>" + CRLF
+                cXmlBody += "       <cfop>" + AllTrim(oSql2:getValue("D2_CF")) + "</cfop>" + CRLF
+                cXmlBody += "    </item>" + CRLF
+                oSql2:skip()
+            EndDo
+            oSql2:close()
 
-        // Monta a seção dos items de produtos da NFS no arquivo XML
-        while oSql2:notIsEof()
-            cXmlBody += "    <item>" + CRLF
-            cXmlBody += "       <codigo>" + AllTrim(oSql2:getValue("D2_COD")) + "</codigo>" + CRLF
-            cXmlBody += "       <descricao>" + AllTrim(oSql2:getValue("B1_DESC")) + "</descricao>" + CRLF
-            cXmlBody += "       <quantidade>" + AllTrim(Str(oSql2:getValue("D2_QUANT"),6,2)) + "</quantidade>" + CRLF
-            cXmlBody += "       <preco>" + AllTrim(Str(oSql2:getValue("D2_PRCVEN"),8,2)) + "</preco>" + CRLF
-            cXmlBody += "       <total>" + AllTrim(Str(oSql2:getValue("D2_TOTAL"),8,2)) + "</total>" + CRLF
-            cXmlBody += "       <cfop>" + AllTrim(oSql2:getValue("D2_CF")) + "</cfop>" + CRLF
-            cXmlBody += "    </item>" + CRLF
-            oSql2:skip()
-        EndDo
-        oSql2:close()
+            cXmlBody += "</items>" + CRLF
+            cXmlBody += "</notafiscal>" 
+            oXmlFile:writeLine(cXmlBody)
+            cXmlBody = ""
 
-        cXmlBody += "</items>" + CRLF
-        cXmlBody += "</notafiscal>" 
-        oXmlFile:writeLine(cXmlBody)
-        cXmlBody = ""
+            oSql:skip()
+            
+        Else
+            nAction := Aviso("Geração do XML da NFS", "O arquivo XML " + cXmlFile + " para essa NF já existe. Deseja apagá-lo e criar novamente?", {"Apagar arquivos", "Finalizar"}, 1)
+            if (nAction == 1)
+                oXmlFile:delete()
+            Elseif (nAction == 2)
+                oSql:skip() 
+            EndIf       
+        EndIf    
 
-        oSql:skip()
-        
     EndDo
 
-    oSql:close()
-
+    oSql:close() 
+  
 Return
