@@ -31,15 +31,22 @@ Static Function ParamsBox()
 
     oParam := LibParamObj():NewLibParamObj("NfsIni","get","Nº da NF Inicial","C",9,9)
     oParam:SetF3("SF2")
-    oParam:setValidation("Vazio() .or. ExistCpo('SF2')") // Analisar esse método setValidation
     oParam:setRequired(.T.)
     oParamBox:AddParam(oParam)
 
     oParam := LibParamObj():NewLibParamObj("NfsFim","get","Nº da NF Final","C",9,9)
     oParam:SetF3("SF2")
-    oParam:setValidation("Vazio() .or. ExistCpo('SF2')") // Analisar esse método setValidation
+    //oParam:setValidation("Vazio() .or. ExistCpo('SF2')") // Analisar esse método setValidation
     oParam:setRequired(.T.)
     oParamBox:AddParam(oParam)
+
+    oParam := LibParamObj():newLibParamObj("DatIni", "get", "Data de Emissão Inicial", "D", 10, 8) 
+	oParam:setRequired(.T.)
+	oParamBox:addParam(oParam)
+	
+	oParam := LibParamObj():newLibParamObj("DatFim", "get", "Data de Emissão Final", "D", 10, 8)
+	oParam:setRequired(.T.) 
+	oParamBox:addParam(oParam)
 
     oParam := LibParamObj():NewLibParamObj("XmlPath", "file", "Selecione o caminho do arquivo", "C", 50)
     oParam:setRequired(.T.)
@@ -57,9 +64,11 @@ Static Function GetNfsData(oParamBox)
     Local cQuery := ""
 
     cQuery := " SELECT F2_DOC, F2_SERIE, F2_EMISSAO, F2_CLIENTE, A1_NOME, A1_MUN, A1_EST, A1_CGC "
-    cQuery += "     FROM SF2990 SF2 "
-    cQuery += "         LEFT JOIN SA1990 SA1 ON A1_COD = F2_CLIENTE AND A1_LOJA = F2_LOJA "
-    cQuery += "     WHERE F2_DOC BETWEEN '" + oParamBox:getValue("NfsIni") + "' AND '" + oParamBox:getValue("NfsFim") + "' "
+    cQuery += "     FROM %SF2.SQLNAME% "
+    cQuery += "         LEFT JOIN %SA1.SQLNAME% ON %SA1.XFILIAL% AND A1_COD = F2_CLIENTE AND A1_LOJA = F2_LOJA AND %SA1.NOTDEL% "
+    cQuery += "     WHERE %SF2.XFILIAL% AND "
+    cQuery += "           F2_EMISSAO BETWEEN '" + DtoS(oParamBox:getValue("DatIni")) + "' AND '" + DtoS(oParamBox:getValue("DatFim")) + "' AND "
+    cQuery += "           F2_DOC BETWEEN '" + oParamBox:getValue("NfsIni") + "' AND '" + oParamBox:getValue("NfsFim") + "' AND %SF2.NOTDEL% "
     cQuery += " ORDER BY F2_DOC ASC "
 
     oSql:newAlias(cQuery)
@@ -72,9 +81,9 @@ Static Function GetNfsItems(oSql)
     Local cQuery := ""
 
     cQuery := " SELECT D2_ITEM, D2_COD, D2_UM, B1_DESC, D2_QUANT, D2_PRCVEN, D2_TOTAL, D2_CF "
-    cQuery += "     FROM SD2990 SD2 "
-    cQuery += "         LEFT JOIN SB1990 SB1 ON B1_COD = D2_COD "
-    cQuery += "     WHERE D2_DOC = '" + AllTrim(oSql:getValue("F2_DOC")) + "' AND D2_SERIE = '" + AllTrim(oSql:getValue("F2_SERIE")) + "' " 
+    cQuery += "     FROM %SD2.SQLNAME% "
+    cQuery += "         LEFT JOIN %SB1.SQLNAME% ON %SB1.XFILIAL% AND B1_COD = D2_COD AND %SB1.NOTDEL% "
+    cQuery += "     WHERE %SD2.XFILIAL% AND D2_DOC = '" + AllTrim(oSql:getValue("F2_DOC")) + "' AND D2_SERIE = '" + AllTrim(oSql:getValue("F2_SERIE")) + "' AND %SD2.NOTDEL%  " 
     cQuery += " ORDER BY D2_DOC, D2_ITEM ASC "
     
     oSql2:newAlias(cQuery)
@@ -106,7 +115,7 @@ Static Function setXmlFile(oSql)
         cXmlHeader += "<items>"
         
         // Monta o path e nome do arquivo XML
-        cXmlFile := AllTrim(oParamBox:getValue("XmlPath")) + "\" + AllTrim(oSql:getValue("F2_DOC")) + "-" + AllTrim(oSql:getValue("F2_SERIE")) + ".xml"
+        cXmlFile := AllTrim(oParamBox:getValue("XmlPath")) + "\nfs_" + AllTrim(oSql:getValue("F2_DOC")) + "-" + AllTrim(oSql:getValue("F2_SERIE")) + ".xml"
        
         // Cria o arquivo XML
         oXmlFile := LibFileObj():newLibFileObj(cXmlFile)
