@@ -9,7 +9,9 @@ User Function GeraXmlNfs()
     Private oSql := LibSqlObj():NewLibSqlObj()
     
     // Chama a tela de entrada de parâmetros
-    ParamsBox()
+    If !ParamsBox()
+        Return
+    EndIf 
     
     // Monta e executa a query de busca dos dados das notas fiscais
     GetNfsData(oParamBox)
@@ -31,13 +33,10 @@ Static Function ParamsBox()
 
     oParam := LibParamObj():NewLibParamObj("NfsIni","get","Nº da NF Inicial","C",9,9)
     oParam:SetF3("SF2")
-    oParam:setRequired(.T.)
     oParamBox:AddParam(oParam)
 
     oParam := LibParamObj():NewLibParamObj("NfsFim","get","Nº da NF Final","C",9,9)
     oParam:SetF3("SF2")
-    //oParam:setValidation("Vazio() .or. ExistCpo('SF2')") // Analisar esse método setValidation
-    oParam:setRequired(.T.)
     oParamBox:AddParam(oParam)
 
     oParam := LibParamObj():newLibParamObj("DatIni", "get", "Data de Emissão Inicial", "D", 10, 8) 
@@ -51,12 +50,8 @@ Static Function ParamsBox()
     oParam := LibParamObj():NewLibParamObj("XmlPath", "file", "Selecione o caminho do arquivo", "C", 50)
     oParam:setRequired(.T.)
     oParamBox:AddParam(oParam)
-    
-    If !oParamBox:Show()
-        Return
-    EndIf     
-    
-Return
+        
+Return oParamBox:Show()
 
 
 // Função para buscar os dados do cabeçalho das NFS
