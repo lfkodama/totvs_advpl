@@ -4,23 +4,31 @@
 #DEFINE CRLF chr(13)+chr(10)  // Constante para quebra de linha
 
 User Function GeraXmlNfs()
-    Local cTitle := "GeraXmlNfs"
+    Local cTitle       := "GeraXmlNfs"
+    Local lDir         := .T.
+    Local lError       := .F.
     Private oParamBox  := LibParamBoxObj():newLibParamBoxObj(cTitle)
-    Private oSql := LibSqlObj():NewLibSqlObj()
+    Private oSql       := LibSqlObj():NewLibSqlObj()
     
-    // Chama a tela de entrada de parâmetros
     If !ParamsBox()
         Return
     EndIf 
     
-    // Monta e executa a query de busca dos dados das notas fiscais
+    // Verifica se o diretório informado existe
+    lDir := ExistDir(AllTrim(oParamBox:getValue("XmlPath")))
+    If !lDir
+        lError := .T.
+        MessageBox("O diretório informado, " + AllTrim(oParamBox:getValue("XmlPath")) + ", não existe. Verifique.", "Diretório de geração do arquivo XML", 48)
+        Return
+    EndIf
+
     GetNfsData(oParamBox)
+    
+    createXmlFile(oSql)
 
-    // Monta a Header do arquivo XML
-    setXmlFile(oSql)
-
-    MessageBox("Arquivos gerados com sucesso", "Confirmação de geração de arquivos", 64)
-
+    If lError == .F.
+        MessageBox("Arquivos gerados com sucesso", "Confirmação de geração de arquivos", 64)
+    EndIf 
 Return
 
 
@@ -87,12 +95,13 @@ Return oSql2
 
 
 // Função para montar o conteúdo do arquivo XML
-Static Function setXmlFile(oSql)
+Static Function createXmlFile(oSql)
     nAction := 0
     Local cXmlHeader := ""
     Local cXmlBody := ""
     Local cXmlFile := ""
-    Local oXmlFile := Nil 
+    Local oXmlFile := Nil
+    Local lError := .F. 
     Private oSql2 := LibSqlObj():NewLibSqlObj()
     
     // Monta a seção de cabeçalho do arquivo XML
@@ -108,7 +117,7 @@ Static Function setXmlFile(oSql)
         cXmlHeader += "    <uf>" + AllTrim(oSql:getValue("A1_EST")) + "</uf>" + CRLF
         cXmlHeader += "</cliente>" + CRLF
         cXmlHeader += "<items>"
-        
+
         // Monta o path e nome do arquivo XML
         cXmlFile := AllTrim(oParamBox:getValue("XmlPath")) + "\nfs_" + AllTrim(oSql:getValue("F2_DOC")) + "-" + AllTrim(oSql:getValue("F2_SERIE")) + ".xml"
        
@@ -117,8 +126,14 @@ Static Function setXmlFile(oSql)
        
         // Verifica se o XML da NFS já existe. Caso existir, pergunta se o usuário deseja apagar o arquivo e gerar um novo, ou finalizar.
         If !oXmlFile:exists(cXmlFile)
+            
             // Grava o conteúdo do XML
-            oXmlFile:writeLine(cXmlHeader)
+            if !oXmlFile:writeLine(cXmlHeader)
+                lError := .T.
+                MessageBox(lError, "Deu erro na gravação", 48)
+                Alert("Falha ao gravar o arquivo " + cXmlFile )
+                return lError
+            Endif
 
             // Busca os items da NF e monta as tags XML
             GetNfsItems(oSql)
@@ -139,22 +154,29 @@ Static Function setXmlFile(oSql)
 
             cXmlBody += "</items>" + CRLF
             cXmlBody += "</notafiscal>" 
-            oXmlFile:writeLine(cXmlBody)
+            if !oXmlFile:writeLine(cXmlBody)
+                lError := .T.
+                Alert("Falha ao gravar o arquivo " + cXmlFile)
+                return .F.
+            Endif
             cXmlBody = ""
 
-            oSql:skip()
-            
+            oSql:skip()    
         Else
             nAction := Aviso("Geração do XML da NFS", "O arquivo XML " + cXmlFile + " para essa NF já existe. Deseja apagá-lo e criar novamente?", {"Apagar arquivos", "Finalizar"}, 1)
             if (nAction == 1)
-                oXmlFile:delete()
+                If !oXmlFile:writeline()  // Verifica se o arquivo está aberto para edição
+                    MessageBox("O arquivo está em uso por outra aplicação. Verifique e tente novamente.", "Geração de Arquivo XML", 48)  
+                else
+                    oXmlFile:delete()
+                EndIf        
             Elseif (nAction == 2)
                 oSql:skip() 
-            EndIf       
+            EndIf      
         EndIf    
 
     EndDo
-
+   
     oSql:close() 
   
 Return
