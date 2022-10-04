@@ -1,7 +1,7 @@
 #include "totvs.ch"
 #include "rwmake.ch"
 
-#DEFINE CRLF chr(13)+chr(10)  // Constante para quebra de linha
+#DEFINE CRLF chr(13)+chr(10)  // Constante para quebra de linha                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 
 User Function GeraXmlNfs()
     Local cTitle       := "GeraXmlNfs"
@@ -58,6 +58,8 @@ Static Function ParamsBox()
 	oParamBox:addParam(oParam)
 
     oParam := LibParamObj():NewLibParamObj("XmlPath", "file", "Selecione o caminho do arquivo", "C", 50)
+    oParam:setFileTypes("Arquivos XML |*.xml")
+	  oParam:setFileParams(GETF_LOCALHARD + GETF_NETWORKDRIVE + GETF_RETDIRECTORY)
     oParam:setRequired(.T.)
     oParamBox:AddParam(oParam)
         
@@ -133,6 +135,7 @@ Static Function createXmlFile(oSql)
             if !oXmlFile:writeLine(cXmlHeader)
                 lError := .T.
                 MessageBox(lError, "Deu erro na gravação", 48)
+                oSql:close()
                 return lError
             Endif
 
@@ -158,21 +161,21 @@ Static Function createXmlFile(oSql)
             if !oXmlFile:writeLine(cXmlBody)
                 lError := .T.
                 Alert("Falha ao gravar o arquivo " + cXmlFile)
+                oSql:close()
                 return .F.
             Endif
             cXmlBody = ""
 
             oSql:skip()    
         Else
-            nAction := Aviso("Geração do XML da NFS", "O arquivo XML " + cXmlFile + " para essa NF já existe. Deseja apagá-lo e criar novamente?", {"Apagar arquivos", "Finalizar"}, 1)
+            nAction := Aviso("Geração do XML da NFS", "O arquivo XML " + cXmlFile + " para essa NF já existe. Deseja apagá-lo e criar novamente?", {"Sim", "Não", "Abortar"}, 1)
             if (nAction == 1)
-                If !oXmlFile:writeline()  // Verifica se o arquivo está aberto para edição
-                    MessageBox("O arquivo está em uso por outra aplicação. Verifique e tente novamente.", "Geração de Arquivo XML", 48)  
-                else
-                    oXmlFile:delete()
-                EndIf        
+                oXmlFile:delete()
             Elseif (nAction == 2)
                 oSql:skip() 
+            elseIf (nAction == 3)
+              oSql:close()
+              return .F.
             EndIf      
         EndIf    
 
