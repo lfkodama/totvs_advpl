@@ -23,8 +23,10 @@ User Function GeraXmlNfs()
     EndIf
 
     GetNfsData(oParamBox)
-    
-    createXmlFile(oSql)
+
+    If !createXmlFile(oSql)
+        lError := .T.
+    EndIf
 
     If lError == .F.
         MessageBox("Arquivos gerados com sucesso", "Confirmação de geração de arquivos", 64)
@@ -131,7 +133,6 @@ Static Function createXmlFile(oSql)
             if !oXmlFile:writeLine(cXmlHeader)
                 lError := .T.
                 MessageBox(lError, "Deu erro na gravação", 48)
-                Alert("Falha ao gravar o arquivo " + cXmlFile )
                 return lError
             Endif
 
@@ -179,4 +180,4 @@ Static Function createXmlFile(oSql)
    
     oSql:close() 
   
-Return
+Return .T.
