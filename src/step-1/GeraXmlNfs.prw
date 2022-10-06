@@ -62,7 +62,7 @@ static function createFiles(oParamBox)
   local nI        := 0
   local aInvoices := getInvoices(oParamBox)
 
-  for nI := to Len(aInvoices)
+  for nI := 1 to Len(aInvoices)
     createInvoiceFile(aInvoices[nI])
   next nI
 
@@ -73,7 +73,40 @@ return
  */
 static function getInvoices(oParamBox)
 
-  local aInvoices := {}
+  local cQuery      := ""
+  local cFromNumber := oParamBox:getValue("fromNumber")
+  local cToNumber   := oParamBox:getValue("toNumber")
+  local dStartDate  := oParamBox:getValue("startDate")
+  local dEndDate    := oParamBox:getValue("endDate")
+  local aInvoices   := {}
+  local oInvoice    := nil
+  local oSql        := LibSqlObj():newLibSqlObj()
+
+  cQuery := " SELECT "
+  cQuery += "   F2_DOC [NUMBER], "
+  cQuery += "   F2_SERIE [SERIES], "
+  cQuery += "   F2_EMISSAO [DATE] "
+  cQuery += " FROM %SF2.SQLNAME% "
+  cQuery += " WHERE %SF2.XFILIAL% AND "
+  cQuery += "       F2_DOC BETWEEN '" + cFromNumber + "' AND '" + cToNumber + "' AND "
+  cQuery += "       F2_EMISSAO BETWEEN '" + DtoS(dStartDate) + "' AND '" + DtoS(dEndDate) + "' AND %SF2.NOTDEL% "
+
+  oSql:newAlias(cQuery)
+  oSql:setField("DATE", "D")
+
+  while oSql:notIsEof()
+
+    oInvoice           := JsonObject():new()
+    oInvoice["number"] := oSql:getValue("AllTrim(NUMBER)")
+    oInvoice["series"] := oSql:getValue("AllTrim(SERIES)")
+    oInvoice["date"]   := oSql:getValue("DATE")
+
+    aAdd(aInvoices, oInvoice)
+
+    oSql:skip()
+  endDo
+
+  oSql:close()
  
 return aInvoices
 
@@ -81,7 +114,7 @@ return aInvoices
  * Cria um arquivo para uma NF
  */
 static function createInvoiceFile(oInvoice)
-
   
+  MsgInfo(oInvoice:toJson())
 
 return
