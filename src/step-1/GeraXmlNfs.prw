@@ -83,10 +83,16 @@ static function getInvoices(oParamBox)
   local oSql        := LibSqlObj():newLibSqlObj()
 
   cQuery := " SELECT "
-  cQuery += "   F2_DOC [NUMBER], "
-  cQuery += "   F2_SERIE [SERIES], "
-  cQuery += "   F2_EMISSAO [DATE] "
+  cQuery += "   F2_DOC     [NUMBER], "
+  cQuery += "   F2_SERIE   [SERIES], "
+  cQuery += "   F2_EMISSAO [DATE], "
+  cQuery += "   A1_CGC     [CGC], "
+  cQuery += "   A1_NOME    [CUSTOMER_NAME], "
+  cQuery += "   A1_MUN     [CITY], "
+  cQuery += "   A1_EST     [STATE] "
   cQuery += " FROM %SF2.SQLNAME% "
+  cQuery += "   INNER JOIN %SA1.SQLNAME% ON "
+  cQuery += "     %SA1.XFILIAL% AND A1_COD = F2_CLIENTE AND A1_LOJA = F2_LOJA AND %SA1.NOTDEL% "
   cQuery += " WHERE %SF2.XFILIAL% AND "
   cQuery += "       F2_DOC BETWEEN '" + cFromNumber + "' AND '" + cToNumber + "' AND "
   cQuery += "       F2_EMISSAO BETWEEN '" + DtoS(dStartDate) + "' AND '" + DtoS(dEndDate) + "' AND %SF2.NOTDEL% "
@@ -96,10 +102,15 @@ static function getInvoices(oParamBox)
 
   while oSql:notIsEof()
 
-    oInvoice           := JsonObject():new()
-    oInvoice["number"] := oSql:getValue("AllTrim(NUMBER)")
-    oInvoice["series"] := oSql:getValue("AllTrim(SERIES)")
-    oInvoice["date"]   := oSql:getValue("DATE")
+    oInvoice                 := JsonObject():new()
+    oInvoice["number"]       := oSql:getValue("AllTrim(NUMBER)")
+    oInvoice["series"]       := oSql:getValue("AllTrim(SERIES)")
+    oInvoice["date"]         := oSql:getValue("DATE")
+    oInvoice["cgc"]          := oSql:getValue("AllTrim(CGC)")
+    oInvoice["customerName"] := oSql:getValue("AllTrim(CUSTOMER_NAME)")
+    oInvoice["city"]         := oSql:getValue("AllTrim(CITY)")
+    oInvoice["state"]        := oSql:getValue("AllTrim(STATE)")
+    oInvoice["items"]        := getItemsInvoice(oInvoice)
 
     aAdd(aInvoices, oInvoice)
 
@@ -109,6 +120,51 @@ static function getInvoices(oParamBox)
   oSql:close()
  
 return aInvoices
+
+/**
+ * Retorna os itens de uma NF
+ */
+static function getItemsInvoice(oInvoice)
+
+  local aItems := {}
+  local cQuery := ""
+  local oItem  := nil
+  local oSql   := LibSqlObj():newLibSqlObj()
+
+  cQuery := " SELECT "
+  cQuery += "   D2_COD    [CODE], "
+  cQuery += "   B1_DESC   [DESCRIPTION], "
+  cQuery += "   D2_QUANT  [QUANTITY], "
+  cQuery += "   D2_PRCVEN [PRICE], "
+  cQuery += "   D2_TOTAL  [TOTAL], "
+  cQuery += "   D2_CF     [CFOP] "
+  cQuery += " FROM %SD2.SQLNAME% "
+  cQuery += "   INNER JOIN %SB1.SQLNAME% ON "
+  cQuery += "     %SB1.XFILIAL% AND B1_COD = D2_COD AND %SB1.NOTDEL% "
+  cQuery += " WHERE %SD2.XFILIAL% AND D2_DOC = '" + oInvoice["number"] + "' AND "
+  cQuery += "       D2_SERIE = '" + oInvoice["series"] + "' AND %SD2.NOTDEL% "
+  cQuery += " ORDER BY D2_COD "
+
+  oSql:newAlias(cQuery)
+
+  while oSql:notIsEof()
+
+    oItem                := JsonObject():new()
+    oItem["code"]        := oSql:getValue("AllTrim(CODE)")
+    oItem["description"] := oSql:getValue("AllTrim(DESCRIPTION)")
+    oItem["quantity"]    := oSql:getValue("QUANTITY")
+    oItem["price"]       := oSql:getValue("PRICE")
+    oItem["total"]       := oSql:getValue("TOTAL")
+    oItem["cfop"]        := oSql:getValue("AllTrim(CFOP)")
+
+    aAdd(aItems, oItem)
+
+    oSql:skip()
+  endDo
+
+  oSql:close()
+
+return aItems
 
 /**
  * Cria um arquivo para uma NF
