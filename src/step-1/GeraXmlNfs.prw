@@ -1,5 +1,10 @@
 #include "totvs.ch"
 
+//TODO:
+//1. Popular itens do arquivo XML
+//2. Validar diretório informado
+//3. Tratar substituição de arquivos já existens
+//4. Apresentar mensagem ao final do processamento ( X arquivos gerados ou Nenhum arquivo gerado )
 
 /*/{Protheus.doc} GeraXmlNfs
 
@@ -63,7 +68,7 @@ static function createFiles(oParamBox)
   local aInvoices := getInvoices(oParamBox)
 
   for nI := 1 to Len(aInvoices)
-    createInvoiceFile(aInvoices[nI])
+    createInvoiceFile(aInvoices[nI], oParamBox)
   next nI
 
 return
@@ -169,8 +174,28 @@ return aItems
 /**
  * Cria um arquivo para uma NF
  */
-static function createInvoiceFile(oInvoice)
-  
-  MsgInfo(oInvoice:toJson())
+static function createInvoiceFile(oInvoice, oParamBox)
+
+  local cXml    := ""
+  local cFolder := AllTrim(oParamBox:getValue("folder"))
+  local cNumber := AllTrim(oInvoice["number"]) 
+  local cSeries := AllTrim(oInvoice["series"]) 
+  local cFile   := cFolder + "\nfs_" + cNumber + "-" + cSeries + ".xml"
+  local oFile   := LibFileObj():newLibFileObj(cFile)
+  local oUtils  := LibUtilsObj():newLibUtilsObj()
+
+  cXml := "<notafiscal>" + CRLF
+  cXml += " <numero>" + oInvoice["number"] + "</numero>" + CRLF
+  cXml += " <serie>" + oInvoice["series"] + "</serie>" + CRLF
+  cXml += " <emissao>" + DtoC(oInvoice["date"]) + "</emissao>" + CRLF
+  cXml += " <cliente>" + CRLF
+  cXml += "  <cgc>" + oInvoice["cgc"] + "</cgc>" + CRLF
+  cXml += "  <razaoSocial>" + oUtils:noAccent(oInvoice["customerName"]) + "</razaoSocial>" + CRLF
+  cXml += "  <municipio>" + oInvoice["city"] + "</municipio>" + CRLF
+  cXml += "  <uf>" + oInvoice["state"] + "</uf>" + CRLF
+  cXml += " </cliente>" + CRLF
+  cXml += "</notafiscal>" + CRLF
+
+  oFile:writeLine(cXml)  
 
 return
