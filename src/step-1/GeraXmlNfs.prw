@@ -2,7 +2,7 @@
 
 //TODO:
 //1. Popular itens do arquivo XML - OK
-//2. Validar diretório informado
+//2. Validar diretório informado - OK
 //3. Tratar substituição de arquivos já existens
 //4. Apresentar mensagem ao final do processamento ( X arquivos gerados ou Nenhum arquivo gerado )
 
@@ -65,10 +65,17 @@ return oParamBox
 static function createFiles(oParamBox)
 
   local nI        := 0
+  local cFolder := AllTrim(oParamBox:getValue("folder"))
   local aInvoices := getInvoices(oParamBox)
+  
+  lDir := ExistDir(cFolder)
+  If !lDir
+      MessageBox("O diretório informado, " + cFolder + ", não existe. Verifique.", "Diretório do arquivo XML", 48)
+      Return
+  EndIf
 
   for nI := 1 to Len(aInvoices)
-    createInvoiceFile(aInvoices[nI], oParamBox)
+    createInvoiceFile(aInvoices[nI], cFolder)
   next nI
 
 return
@@ -174,18 +181,19 @@ return aItems
 /**
  * Cria um arquivo para uma NF
  */
-static function createInvoiceFile(oInvoice, oParamBox)
+static function createInvoiceFile(oInvoice, cFolder)
 
   local cXml    := ""
   local nI      := 0
   local aItems  := oInvoice["items"]
-  local cFolder := AllTrim(oParamBox:getValue("folder"))
   local cNumber := AllTrim(oInvoice["number"]) 
   local cSeries := AllTrim(oInvoice["series"]) 
   local oItem   := nil
   local cFile   := cFolder + "\nfs_" + cNumber + "-" + cSeries + ".xml"
   local oFile   := LibFileObj():newLibFileObj(cFile)
   local oUtils  := LibUtilsObj():newLibUtilsObj()
+
+  MsgInfo(cFile, "Nome do arquivo")
 
   cXml := "<notafiscal>" + CRLF
   cXml += " <numero>" + oInvoice["number"] + "</numero>" + CRLF
@@ -217,6 +225,8 @@ static function createInvoiceFile(oInvoice, oParamBox)
     cXml += " </items>" + CRLF
     cXml += "</notafiscal>" + CRLF
 
-  oFile:writeLine(cXml)  
+  if !oFile:writeLine(cXml)
+    MsgInfo("Ocorreu um erro na geração do arquivo", "Geração de arquivo XML")
+  endIf    
 
 return
