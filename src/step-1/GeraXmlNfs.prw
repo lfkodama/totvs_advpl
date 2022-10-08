@@ -3,7 +3,7 @@
 //TODO:
 //1. Popular itens do arquivo XML - OK
 //2. Validar diretório informado - OK
-//3. Tratar substituição de arquivos já existens
+//3. Tratar substituição de arquivos já existens - OK
 //4. Apresentar mensagem ao final do processamento ( X arquivos gerados ou Nenhum arquivo gerado )
 
 /*/{Protheus.doc} GeraXmlNfs
@@ -65,6 +65,7 @@ return oParamBox
 static function createFiles(oParamBox)
 
   local nI        := 0
+  local cXml      := ""
   local cFolder := AllTrim(oParamBox:getValue("folder"))
   local aInvoices := getInvoices(oParamBox)
   
@@ -75,7 +76,9 @@ static function createFiles(oParamBox)
   EndIf
 
   for nI := 1 to Len(aInvoices)
-    createInvoiceFile(aInvoices[nI], cFolder)
+    cXml := createContentInvoice(aInvoices[nI], cFolder)
+    createInvoiceFile(aInvoices[nI], cFolder, cXml)
+    
   next nI
 
 return
@@ -179,21 +182,15 @@ static function getItemsInvoice(oInvoice)
 return aItems
 
 /**
- * Cria um arquivo para uma NF
+ * Trata o conteúdo do arquivo XML
  */
-static function createInvoiceFile(oInvoice, cFolder)
+static function createContentInvoice(oInvoice, cFolder)
 
   local cXml    := ""
   local nI      := 0
   local aItems  := oInvoice["items"]
-  local cNumber := AllTrim(oInvoice["number"]) 
-  local cSeries := AllTrim(oInvoice["series"]) 
   local oItem   := nil
-  local cFile   := cFolder + "\nfs_" + cNumber + "-" + cSeries + ".xml"
-  local oFile   := LibFileObj():newLibFileObj(cFile)
   local oUtils  := LibUtilsObj():newLibUtilsObj()
-
-  MsgInfo(cFile, "Nome do arquivo")
 
   cXml := "<notafiscal>" + CRLF
   cXml += " <numero>" + oInvoice["number"] + "</numero>" + CRLF
@@ -225,8 +222,33 @@ static function createInvoiceFile(oInvoice, cFolder)
     cXml += " </items>" + CRLF
     cXml += "</notafiscal>" + CRLF
 
-  if !oFile:writeLine(cXml)
-    MsgInfo("Ocorreu um erro na geração do arquivo", "Geração de arquivo XML")
-  endIf    
+      
+
+return cXml
+
+
+/**
+ * Cria um arquivo para uma NF
+ */
+static function createInvoiceFile(oInvoice, cFolder, cXml)
+
+  local cNumber := AllTrim(oInvoice["number"]) 
+  local cSeries := AllTrim(oInvoice["series"]) 
+  local cFile   := cFolder + "\nfs_" + cNumber + "-" + cSeries + ".xml"
+  local oFile   := LibFileObj():newLibFileObj(cFile)
+  
+  if oFile:exists(cFile)
+    nAction := Aviso("Geração de arquivo XML", "O arquivo XML " + cFile + " para essa NF já existe. Deseja apagá-lo e criar novamente?", {"Sim", "Abortar"}, 1)
+    if (nAction == 1)
+        oFile:delete()
+        oFile:writeLine(cXml)
+    else
+        return  
+    endIf      
+  else
+    if !oFile:writeLine(cXml)
+      MsgInfo("Ocorreu um erro na geração do arquivo", "Geração de arquivo XML")
+    endIf
+  endIf 
 
 return
