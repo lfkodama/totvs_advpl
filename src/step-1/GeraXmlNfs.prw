@@ -66,8 +66,9 @@ static function createFiles(oParamBox)
 
   local nI        := 0
   local cXml      := ""
-  local cFolder := AllTrim(oParamBox:getValue("folder"))
+  local cFolder   := AllTrim(oParamBox:getValue("folder"))
   local aInvoices := getInvoices(oParamBox)
+  private nCount  := 0
   
   lDir := ExistDir(cFolder)
   If !lDir
@@ -76,10 +77,18 @@ static function createFiles(oParamBox)
   EndIf
 
   for nI := 1 to Len(aInvoices)
+
+    nCount ++
     cXml := createContentInvoice(aInvoices[nI], cFolder)
     createInvoiceFile(aInvoices[nI], cFolder, cXml)
     
   next nI
+
+  if nCount > 0
+    MsgInfo(AllTrim(Str(nCount)) + " arquivo(s) criado(s)", "Arquivos XML gerados")
+  else
+    MsgInfo("Nenhum arquivo gerado", "Arquivos XML gerados")  
+  endIf
 
 return
 
@@ -243,7 +252,8 @@ static function createInvoiceFile(oInvoice, cFolder, cXml)
         oFile:delete()
         oFile:writeLine(cXml)
     else
-        return  
+        nCount --
+        return nCount 
     endIf      
   else
     if !oFile:writeLine(cXml)
