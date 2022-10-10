@@ -70,11 +70,10 @@ static function createFiles(oParamBox)
   local aInvoices := getInvoices(oParamBox)
   private nCount  := 0
   
-  lDir := ExistDir(cFolder)
-  If !lDir
+  if !ExistDir(cFolder)
       MessageBox("O diretório informado, " + cFolder + ", não existe. Verifique.", "Diretório do arquivo XML", 48)
-      Return
-  EndIf
+      return
+  endIf
 
   for nI := 1 to Len(aInvoices)
 
@@ -231,8 +230,6 @@ static function createContentInvoice(oInvoice, cFolder)
     cXml += " </items>" + CRLF
     cXml += "</notafiscal>" + CRLF
 
-      
-
 return cXml
 
 
@@ -253,7 +250,7 @@ static function createInvoiceFile(oInvoice, cFolder, cXml)
         oFile:writeLine(cXml)
     else
         nCount --
-        return nCount 
+        return
     endIf      
   else
     if !oFile:writeLine(cXml)
