@@ -212,12 +212,14 @@ static function createContentInvoice(oInvoice, cFolder)
     oItem := aItems[nI]
     
     cXml += "   <item>" + CRLF
-    cXml += "     <codigo>" + oItem["code"] + "</codigo>" + CRLF
-    cXml += "     <descricao>" + oItem["description"] + "</descricao>" + CRLF
-    cXml += "     <quantidade>" + AllTrim(Str(oItem["quantity"],8,2)) + "</quantidade>" + CRLF
-    cXml += "     <preco>" + AllTrim(Str(oItem["price"],8,2)) + "</preco>" + CRLF
-    cXml += "     <total>" + AllTrim(Str(oItem["total"],8,2)) + "</total>" + CRLF
-    cXml += "     <cfop>" + oItem["cfop"] + "</cfop>" + CRLF
+    cXml += "     <prod>" + CRLF
+    cXml += "       <codigo>" + oItem["code"] + "</codigo>" + CRLF
+    cXml += "       <descricao>" + oItem["description"] + "</descricao>" + CRLF
+    cXml += "       <quantidade>" + AllTrim(Str(oItem["quantity"],8,2)) + "</quantidade>" + CRLF
+    cXml += "       <preco>" + AllTrim(Str(oItem["price"],8,2)) + "</preco>" + CRLF
+    cXml += "       <total>" + AllTrim(Str(oItem["total"],8,2)) + "</total>" + CRLF
+    cXml += "       <cfop>" + oItem["cfop"] + "</cfop>" + CRLF
+    cXml += "     </prod>" + CRLF
     cXml += "   </item>" + CRLF
   
   next nI 
