@@ -23,20 +23,24 @@
   </cliente>
   <items>
     <item>
-      <codigo>P00001</codigo>
-      <descricao>PRODUTO TESTE 1</descricao>
-      <quantidade>10</quantidade>
-      <preco>123.45</preco>
-      <total>1234.5</total>
-      <cfop>5102</cfop>
+      <prod>
+        <codigo>P00001</codigo>
+        <descricao>PRODUTO TESTE 1</descricao>
+        <quantidade>10</quantidade>
+        <preco>123.45</preco>
+        <total>1234.5</total>
+        <cfop>5102</cfop>
+      </prod>  
     </item>
     <item>
-      <codigo>P00002</codigo>
-      <descricao>PRODUTO TESTE 2</descricao>
-      <quantidade>20</quantidade>
-      <preco>600</preco>
-      <total>12000</total>
-      <cfop>5102</cfop>
+      <prod>
+        <codigo>P00002</codigo>
+        <descricao>PRODUTO TESTE 2</descricao>
+        <quantidade>20</quantidade>
+        <preco>600</preco>
+        <total>12000</total>
+        <cfop>5102</cfop>
+      </prod>  
     </item>
   </items>
 </notafiscal>
