@@ -30,6 +30,8 @@ user function ImpXmlMvc()
   oBrowse:setAlias(MVC_ALIAS)
   oBrowse:setDescription(MVC_TITLE)
 
+  addBrowseLegends(oBrowse)
+
   oBrowse:activate()
 
 return
@@ -126,3 +128,13 @@ return oView
  */
 static function validModel(oActiveModel)     	   	 	        
 return .T.
+
+
+/**
+ * Define as legendas do grid
+ */
+static function addBrowseLegends(oBrowse)
+  oBrowse:addLegend("Z1_STATUS = '0'", "BR_AMARELO", "Aguardando processamento")
+  oBrowse:addLegend("Z1_STATUS = '1'", "BR_VERDE", "Pedido processado")
+  oBrowse:addLegend("Z1_STATUS = '2'", "BR_VERMELHO", "Erro de processamento")
+return
