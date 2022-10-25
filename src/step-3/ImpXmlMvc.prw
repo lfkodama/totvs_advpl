@@ -48,7 +48,8 @@ static function menuDef()
   aAdd(aOptions, {"Pesquisar", "PesqBrw", 0, 1})
   aAdd(aOptions, {"Visualizar", cViewId, 0, 2})
   aAdd(aOptions, {"Importar", "u_ImportXml", 0, 3})
-  aAdd(aOptions, {"Excluir", cViewId, 0, 4})
+  aAdd(aOptions, {"Gerar Pedido", "u_GerPedMvc", 0, 4})
+  aAdd(aOptions, {"Excluir", cViewId, 0, 5})
   
 return aOptions
 

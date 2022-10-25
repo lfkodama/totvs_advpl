@@ -158,6 +158,7 @@ static function getOrderItems(oSellOrder)
 
 return aItems
 
+
 /**
  * Executa a função para inserção do pedido de venda
  */
