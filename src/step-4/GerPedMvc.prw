@@ -53,6 +53,7 @@ return oParamBox
  */
 static function getNfsData(oParambox)
 
+  local cAux := ""
   local cQuery     := ""
   local cOrderNo   := GetSxeNum("SC5", "C5_NUM")
   local aSellOrder := {}
@@ -88,15 +89,16 @@ static function getNfsData(oParambox)
 
   while oSql:notIsEof()
     oSellOrder                  := JsonObject():new()
-    oSellOrder["filial"]        := oSql:getValue("FILIAL")  
-    oSellOrder["loja"]          := oSql:getValue("LOJA")
     oSellOrder["number"]        := oSql:getValue("NUMBER")
-    oSellOrder["serie"]         := oSql:getValue("SERIE")
-    oSellOrder["orderNumber"]   := cOrderNo
-    oSellOrder["customerCode"]  := oSql:getValue("CUSTOMER_CODE")
-    oSellOrder["paymentMethod"] := oSql:getValue("PAYMENT_METHOD")
-    if oSellOrder["paymentMethod"] == " "
-      oSellOrder["paymentMethod"] := "002"  
+    oSellOrder["series"]        := oSql:getValue("SERIES")
+    oSellOrder["C5_NUM"]        := cOrderNo
+    oSellOrder["C5_TIPO"]       := "N"
+    oSellOrder["C5_CLIENTE"]    := oSql:getValue("CUSTOMER_CODE")
+    oSellOrder["C5_LOJACLI"]    := oSql:getValue("LOJA")
+    oSellOrder["C5_LOJAENT"]    := oSql:getValue("LOJA")
+    oSellOrder["C5_CONDPAG"]    := oSql:getValue("PAYMENT_METHOD")
+    if oSellOrder["C5_CONDPAG"] == " "
+      oSellOrder["C5_CONDPAG"]  := "002"  
     endIf
     
     aAdd(aSellOrder, oSellOrder)
@@ -106,6 +108,9 @@ static function getNfsData(oParambox)
   endDo
   
   oSql:close()
+  cAux := oSellOrder:toJson()
+  MsgInfo(cAux, "SellOrder")
+  getOrderItems(oSellOrder)
 
 return
 
@@ -113,8 +118,9 @@ return
 /**
  * Busca os dados dos itens de produtos no banco
  */
-static function getOrderItems(oSellOrder)
+static function getOrderItems(aSellOrder)
 
+  local cAux := ""
   local cQuery := ""
   local aItems := {}
   local oItems := nil
@@ -126,26 +132,26 @@ static function getOrderItems(oSellOrder)
   cQuery += "   Z2_QUANT  [QUANTITY], "
   cQuery += "   Z2_PRCVEN [PRICE], "
   cQuery += "   Z2_TOTAL  [TOTAL], "
-  cQuery += "   Z2_CF     [CFOP] "
+  cQuery += "   Z2_CFOP   [CFOP] "
   cQuery += " FROM %SZ2.SQLNAME% "
   cQuery += "   INNER JOIN %SB1.SQLNAME% ON "
   cQuery += "     %SB1.XFILIAL% AND B1_COD = Z2_COD AND %SB1.NOTDEL% "
-  cQuery += " WHERE %SZ2.XFILIAL% AND Z2_DOC = '" + oSellOrder["number"] + "' AND "
-  cQuery += "       Z2_SERIE = '" + oSellOrder["serie"] + "' AND %SZ2.NOTDEL% "
+  cQuery += " WHERE %SZ2.XFILIAL% AND Z2_DOC = '" + aSellOrder["number"] + "' AND "
+  cQuery += "       Z2_SERIE = '" + aSellOrder["series"] + "' AND %SZ2.NOTDEL% "
   cQuery += " ORDER BY Z2_DOC, Z2_ITEM "
 
-  oSql:setAlias(cQuery)
+  oSql:newAlias(cQuery)
 
   while oSql:notIsEof()
     
     oItems               := JsonObject():new()
     oItems["C6_ITEM"]    := oSql:getValue("ITEM_NO")
     oItems["C6_PRODUTO"] := oSql:getValue("CODE")
-    oItems["C6_QTDVEN"]  := oSql:getValue("QUANTITY")
-    oItems["C6_PRCVEN"]  := oSql:getValue("PRICE")
-    oItems["C6_PRUNIT"]  := oSql:getValue("PRICE")
-    oItems["C6_VALOR"]   := oSql:getValue("TOTAL")
-    oItems["C6_TES"]     := oSql:getValue("")
+    oItems["C6_QTDVEN"]  := 2 //oSql:getValue("QUANTITY")
+    oItems["C6_PRCVEN"]  := 500.00 //oSql:getValue("PRICE")
+    oItems["C6_PRUNIT"]  := 500.00 //oSql:getValue("PRICE")
+    oItems["C6_VALOR"]   := 1000.00 //oSql:getValue("TOTAL")
+    oItems["C6_TES"]     := "502"
     
     aAdd(aItems, oItems)
 
@@ -153,7 +159,9 @@ static function getOrderItems(oSellOrder)
   endDo
 
   oSql:close()
-
+  cAux := oItems:toJson()
+  MsgInfo(cAux)
+  
   AddNewOrder(aSellOrder, aItems)
 
 return aItems
@@ -164,8 +172,7 @@ return aItems
  */
 static function AddNewOrder(aSellOrder, aItems)
 
-  nOpcX := 3
-  MSExecAuto({|a, b, c, d| MATA410(a, b, c, d)}, aSellOrder, aItems, nOpcX, .F.)
+  MSExecAuto({|a, b, c, d| MATA410(a, b, c, d)}, aSellOrder, aItems, 3, .F.)
   
   if !lMsErroAuto
     ConOut("Incluido com sucesso! " + cOrderNo)
