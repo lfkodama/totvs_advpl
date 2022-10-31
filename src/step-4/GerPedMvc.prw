@@ -56,9 +56,9 @@ static function generateOrders(oParambox)
 
   local nI        := 0
   local aInvoices := getInvoices(oParambox)
-  local aItems := {}
-  private cNumber   := ""
-  private cSeries   := ""
+  local aItems    := {}
+  private cNumber := ""
+  private cSeries := ""
 
   
   if Len(aInvoices) == 0
@@ -70,7 +70,7 @@ static function generateOrders(oParambox)
 
     cNumber := aInvoices[6,2]
     cSeries := aInvoices[7,2]
-    aItems := getOrderItems(cNumber, cSeries)
+    aItems  := getOrderItems(cNumber, cSeries)
 
     createOrder(aInvoices[nI], aItems)
     
@@ -106,11 +106,11 @@ static function getInvoices(oParambox)
   cQuery += "     %SA1.XFILIAL% AND A1_COD = Z1_CLIENTE AND A1_LOJA = Z1_LOJA AND %SA1.NOTDEL% "
   cQuery += " WHERE %SZ1.XFILIAL% AND "
   if !oParamBox:getValue("optionAll") == .T.
-    cQuery += "       Z1_DOC BETWEEN '" + oParamBox:getValue("fromNumber") + "' AND '" + oParamBox:getValue("toNumber") + "' AND "
+    cQuery += " Z1_DOC BETWEEN '" + oParamBox:getValue("fromNumber") + "' AND '" + oParamBox:getValue("toNumber") + "' AND "
   else
-    cQuery += "       Z1_STATUS <> '2' AND "
+    cQuery += " Z1_STATUS <> '2' AND "
   endIf    
-  cQuery += "       %SZ1.NOTDEL% ""
+  cQuery += "   %SZ1.NOTDEL% ""
 
   oSql:newAlias(cQuery)
 
