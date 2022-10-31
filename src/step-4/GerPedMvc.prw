@@ -14,7 +14,7 @@ user function GerPedMvc()
   local oParamBox := paramBox()
   
   if oParamBox:show()
-    getNfsData(oParambox)
+    generateOrders(oParambox)
   endIf
 
 return
@@ -50,16 +50,44 @@ return oParamBox
 
 
 /**
+ * Processa a criacao dos pedidos
+ */
+static function generateOrders(oParambox)
+
+  local nI        := 0
+  local aInvoices := getInvoices(oParambox)
+  local aItems := {}
+  private cNumber   := ""
+  private cSeries   := ""
+
+  
+  if Len(aInvoices) == 0
+    MsgAlert("Nenhuma NF encontrada")
+    return
+  endIf
+
+  for nI := 1 to Len(aInvoices)
+
+    cNumber := aInvoices[6,2]
+    cSeries := aInvoices[7,2]
+    aItems := getOrderItems(cNumber, cSeries)
+
+    createOrder(aInvoices[nI], aItems)
+    
+  next nI
+
+return
+
+
+/**
  * Busca os dados do cabeçalho do pedido no banco
  */
-static function getNfsData(oParambox)
+static function getInvoices(oParambox)
   
-  local cQuery     := ""
-  local cOrderNo   := GetSxeNum("SC5", "C5_NUM")
-  local aSellOrder := {}
-  local oSql       := LibSqlObj():newLibSqlObj()
+  local cQuery    := ""
+  local aHeader   := {}
+  local oSql      := LibSqlObj():newLibSqlObj()
   
-
   cQuery := " SELECT "
   cQuery += "   Z1_FILIAL  [FILIAL], "
   cQuery += "   Z1_LOJA    [LOJA], "
@@ -87,53 +115,32 @@ static function getNfsData(oParambox)
   oSql:newAlias(cQuery)
 
   while oSql:notIsEof()
-    aAdd(aSellOrder,{"number", oSql:getValue("NUMBER"), nil})
-    aAdd(aSellOrder,{"series", oSql:getValue("SERIES"), nil})
-    aAdd(aSellOrder,{"C5_NUM", cOrderNo, nil})
-    aAdd(aSellOrder,{"C5_TIPO", "N", nil})
-    aAdd(aSellOrder,{"C5_CLIENTE", "000004", nil})
-    aAdd(aSellOrder,{"C5_LOJACLI", "001", nil})
-    aAdd(aSellOrder,{"C5_LOJAENT", "001", nil})
-    aAdd(aSellOrder,{"C5_CONDPAG", "002", nil})
+
+    aAdd(aHeader,{"C5_TIPO", "N", nil})    
+    aAdd(aHeader,{"C5_CLIENTE", oSql:getValue("CUSTOMER_CODE"), nil})
+    aAdd(aHeader,{"C5_LOJACLI", oSql:getValue("LOJA"), nil})
+    aAdd(aHeader,{"C5_CONDPAG", "002", nil})
+    aAdd(aHeader,{"C5_ZTPPAG", "1", nil})
+    aAdd(aHeader,{"number", oSql:getValue("NUMBER"), nil})
+    aAdd(aHeader,{"series", oSql:getValue("SERIES"), nil})
     
-    // if aSellOrder["C5_CONDPAG"] == 0
-    //   aAdd(aSellOrder,{"C5_CONDPAG", 002, nil})
-    // endIf
-
-    MsgInfo("Chegou no aSellOrder")
-    getOrderItems(aSellOrder)
-
     oSql:skip()
 
   endDo
   
   oSql:close()
-  
-  
 
-return
+return aHeader
 
 
 /**
  * Busca os dados dos itens de produtos no banco
  */
-static function getOrderItems(aSellOrder)
+static function getOrderItems(cNumber, cSeries)
   
-  local nPos    := 0
   local cQuery  := ""
-  local cNumber := ""
-  local cSeries := ""
   local aItems  := {}
   local oSql    := LibSqlObj():newLibSqlObj()
-
-
-  nPos := aScan(aSellOrder, {|x| AllTrim(x[1])=="number"})  
-  cNumber := aSellOrder[nPos][2]
-  //aDel(aSellOrder[nPos][2],.T.)
-
-  nPos := aScan(aSellOrder, {|x| AllTrim(x[1])=="series"})  
-  cSeries := aSellOrder[nPos][2]
-  //aDel(aSellOrder[nPos][2],.T.)
 
   cQuery := " SELECT "
   cQuery += "   Z2_ITEM   [ITEM_NO], "
@@ -148,6 +155,8 @@ static function getOrderItems(aSellOrder)
   cQuery += " WHERE %SZ2.XFILIAL% AND Z2_DOC = '" + cNumber + "' AND "
   cQuery += "       Z2_SERIE = '" + cSeries + "' AND %SZ2.NOTDEL% "
   cQuery += " ORDER BY Z2_DOC, Z2_ITEM "
+
+  MsgInfo(cQuery)
 
   oSql:newAlias(cQuery)
 
@@ -170,45 +179,29 @@ static function getOrderItems(aSellOrder)
   endDo
 
   oSql:close()
-  MsgInfo("Executou o aItems")
-  
-  AddNewOrder(aSellOrder, aItems)
-
+    
 return aItems
 
 
 /**
  * Executa a função para inserção do pedido de venda
  */
-static function AddNewOrder(aSellOrder, aItems)
+static function createOrder(aHeader, aItems)
   
-  local nCount           := 0
-  local cOrderNo         := GetSxeNum("SC5", "C5_NUM")
-  Private lMsErroAuto    := .F.
-  Private lAutoErrNoFile := .F.
+  local cOrderId      := ""
+  local cError        := ""
+  local oUtils		    := LibUtilsObj():newLibUtilsObj()
+  private lMsErroAuto := .F.
+  private lMsHelpAuto := .T.
   
+  MsExecAuto({|x,y,z| MATA410(x,y,z)}, aHeader, aItems, 3)
 
-  MsgInfo("Chegou no MSExecAuto")
-
-  aSellOrder:= {}
-  aAdd(aSellOrder,{"C5_NUM", cOrderNo, nil})
-  aAdd(aSellOrder,{"C5_TIPO", "N", nil})
-  aAdd(aSellOrder,{"C5_CLIENTE", "000004", nil})
-  aAdd(aSellOrder,{"C5_LOJACLI", "001", nil})
-  aAdd(aSellOrder,{"C5_LOJAENT", "001", nil})
-  aAdd(aSellOrder,{"C5_CONDPAG", "002", nil})
-
-  MSExecAuto({|a, b, c, d| MATA410(a, b, c, d)}, aSellOrder, aItems, 3, .F.)
-  
-  If !lMsErroAuto
-    ConOut("Incluido com sucesso! " + cOrderNo)
-  Else
-    ConOut("Erro na inclusao!")
-    aErroAuto := GetAutoGRLog()
-    For nCount := 1 To Len(aErroAuto)
-        cLogErro += StrTran(StrTran(aErroAuto[nCount], "<", ""), "-", "") + " "
-        ConOut(cLogErro)
-    Next nCount
-  EndIf
+  if !lMsErroAuto
+    cOrderId := SC5->C5_NUM
+    MsgInfo("Pedido gerado com sucesso: " + cOrderId)    
+  else
+    cError := oUtils:getErroAuto()
+    Alert(cError)
+  endIf	
 
 return
