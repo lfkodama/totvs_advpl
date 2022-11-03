@@ -121,15 +121,6 @@ static function getInvoices(oParambox)
 
     getOrderItems(oInvoice)
 
-    /*
-    aAdd(aHeader,{"C5_TIPO", "N", nil})    
-    aAdd(aHeader,{"C5_CLIENTE", oSql:getValue("CUSTOMER_CODE"), nil})
-    aAdd(aHeader,{"C5_LOJACLI", oSql:getValue("LOJA"), nil})
-    aAdd(aHeader,{"C5_CONDPAG", "002", nil})
-    aAdd(aHeader,{"C5_ZTPPAG", "1", nil})
-    aAdd(aHeader,{"number", oSql:getValue("NUMBER"), nil})
-    aAdd(aHeader,{"series", oSql:getValue("SERIES"), nil})
-    */
     aAdd(aInvoices, oInvoice)
 
     oSql:skip()
