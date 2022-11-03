@@ -56,7 +56,6 @@ static function generateOrders(oParambox)
 
   local nI        := 0
   local aInvoices := getInvoices(oParambox)
-  local aItems    := {}
   private cNumber := ""
   private cSeries := ""
 
@@ -68,11 +67,7 @@ static function generateOrders(oParambox)
 
   for nI := 1 to Len(aInvoices)
 
-    cNumber := aInvoices[6,2]
-    cSeries := aInvoices[7,2]
-    aItems  := getOrderItems(cNumber, cSeries)
-
-    createOrder(aInvoices[nI], aItems)
+    createOrder(aInvoices[nI])
     
   next nI
 
@@ -85,7 +80,7 @@ return
 static function getInvoices(oParambox)
   
   local cQuery    := ""
-  local aHeader   := {}
+  local aInvoices := {}
   local oSql      := LibSqlObj():newLibSqlObj()
   
   cQuery := " SELECT "
@@ -115,7 +110,18 @@ static function getInvoices(oParambox)
   oSql:newAlias(cQuery)
 
   while oSql:notIsEof()
+    
+    oInvoice               := JsonObject():new()
+    oInvoice["c5_TIPO"]    := "N"  
+    oInvoice["C5_CLIENTE"] := oSql:getValue("CUSTOMER_CODE")
+    oInvoice["C5_LOJACLI"] := oSql:getValue("LOJA")
+    oInvoice["C5_CONDPAG"] := oSql:getValue("PAYMENT_METHOD")
+    oInvoice["number"]     := oSql:getValue("NUMBER")
+    oInvoice["series"]     := oSql:getValue("SERIES")
 
+    getOrderItems(oInvoice)
+
+    /*
     aAdd(aHeader,{"C5_TIPO", "N", nil})    
     aAdd(aHeader,{"C5_CLIENTE", oSql:getValue("CUSTOMER_CODE"), nil})
     aAdd(aHeader,{"C5_LOJACLI", oSql:getValue("LOJA"), nil})
@@ -123,24 +129,28 @@ static function getInvoices(oParambox)
     aAdd(aHeader,{"C5_ZTPPAG", "1", nil})
     aAdd(aHeader,{"number", oSql:getValue("NUMBER"), nil})
     aAdd(aHeader,{"series", oSql:getValue("SERIES"), nil})
-    
+    */
+    aAdd(aInvoices, oInvoice)
+
     oSql:skip()
 
   endDo
-  
+ 
   oSql:close()
 
-return aHeader
+return aInvoices
 
 
 /**
  * Busca os dados dos itens de produtos no banco
  */
-static function getOrderItems(cNumber, cSeries)
+static function getOrderItems(oInvoice)
   
   local cQuery  := ""
   local aItems  := {}
   local oSql    := LibSqlObj():newLibSqlObj()
+  local cNumber := oInvoice["number"]
+  local cSeries := oInvoice["series"]
 
   cQuery := " SELECT "
   cQuery += "   Z2_ITEM   [ITEM_NO], "
@@ -156,45 +166,69 @@ static function getOrderItems(cNumber, cSeries)
   cQuery += "       Z2_SERIE = '" + cSeries + "' AND %SZ2.NOTDEL% "
   cQuery += " ORDER BY Z2_DOC, Z2_ITEM "
 
-  MsgInfo(cQuery)
-
   oSql:newAlias(cQuery)
 
   while oSql:notIsEof()
     
-    aItem := {}
-
-    aAdd(aItem,{"C6_ITEM", oSql:getValue("ITEM_NO"), nil})
-    aAdd(aItem,{"C6_PRODUTO", oSql:getValue("CODE"), nil})
-    aAdd(aItem,{"C6_QTDVEN", oSql:getValue("QUANTITY"), nil}) 
-    aAdd(aItem,{"C6_PRCVEN", oSql:getValue("PRICE"), nil})
-    aAdd(aItem,{"C6_PRUNIT", oSql:getValue("PRICE"), nil})
-    aAdd(aItem,{"C6_VALOR", oSql:getValue("TOTAL"), nil})
-    aAdd(aItem,{"C6_TES", "502", nil})
-
-    aAdd(aItems, aItem)
+    oItem               := JsonObject():new()
+    oItem["C6_ITEM"]    := oSql:getValue("ITEM_NO")
+    oItem["C6_PRODUTO"] := oSql:getValue("CODE")
+    oItem["C6_QTDVEN"]  := oSql:getValue("QUANTITY")
+    oItem["C6_PRCVEN"]  := oSql:getValue("PRICE")
+    oItem["C6_PRUNIT"]  := oSql:getValue("PRICE")
+    oItem["C6_VALOR"]   := oSql:getValue("TOTAL")
+    oItem["C6_TES"]     := "502"
+    
+    aAdd(aItems, oItem)
       
     oSql:skip()
 
   endDo
 
+  oInvoice["items"] := aItems
+
   oSql:close()
     
-return aItems
+return
 
 
 /**
  * Executa a função para inserção do pedido de venda
  */
-static function createOrder(aHeader, aItems)
+static function createOrder(oInvoices)
   
+  local nI            := 0
   local cOrderId      := ""
   local cError        := ""
   local oUtils		    := LibUtilsObj():newLibUtilsObj()
+  local aHeader       := {}
+  local aItem         := {}
+  local aItemsAuto    := {}
+  local aItems        := oInvoices["items"]
   private lMsErroAuto := .F.
   private lMsHelpAuto := .T.
   
-  MsExecAuto({|x,y,z| MATA410(x,y,z)}, aHeader, aItems, 3)
+  aAdd(aHeader,{"C5_TIPO", oInvoices["C5_TIPO"], nil})    
+  aAdd(aHeader,{"C5_CLIENTE", oInvoices["C5_CLIENTE"], nil})
+  aAdd(aHeader,{"C5_LOJACLI", oInvoices["C5_LOJACLI"], nil})
+  aAdd(aHeader,{"C5_CONDPAG", "002", nil})
+  aAdd(aHeader,{"C5_ZTPPAG", "1", nil})
+  
+  for nI := 1 to len(aItems)
+    aItem := {}
+    aAdd(aItem,{"C6_ITEM", oInvoices["C6_ITEM"], nil})
+    aAdd(aItem,{"C6_PRODUTO", oInvoices["C6_PRODUTO"], nil})
+    aAdd(aItem,{"C6_QTDVEN", oInvoices["C6_QTDVEN"], nil})
+    aAdd(aItem,{"C6_PRCVEN", oInvoices["C6_PRCVEN"], nil})
+    aAdd(aItem,{"C6_PRUNIT", oInvoices["C6_PRUNIT"], nil})
+    aAdd(aItem,{"C6_VALOR", oInvoices["C6_VALOR"], nil})
+    aAdd(aItem,{"C6_TES", "502", nil})
+    
+    aAdd(aItemsAuto, aItem)
+  
+  next nI
+
+  MsExecAuto({|x,y,z| MATA410(x,y,z)}, aHeader, aItemsAuto, 3)
 
   if !lMsErroAuto
     cOrderId := SC5->C5_NUM
