@@ -112,7 +112,7 @@ static function getInvoices(oParambox)
   while oSql:notIsEof()
     
     oInvoice               := JsonObject():new()
-    oInvoice["c5_TIPO"]    := "N"  
+    oInvoice["C5_TIPO"]    := "N"  
     oInvoice["C5_CLIENTE"] := oSql:getValue("CUSTOMER_CODE")
     oInvoice["C5_LOJACLI"] := oSql:getValue("LOJA")
     oInvoice["C5_CONDPAG"] := oSql:getValue("PAYMENT_METHOD")
@@ -186,7 +186,7 @@ return
 /**
  * Executa a função para inserção do pedido de venda
  */
-static function createOrder(oInvoices)
+static function createOrder(oInvoice)
   
   local nI            := 0
   local cOrderId      := ""
@@ -195,26 +195,30 @@ static function createOrder(oInvoices)
   local aHeader       := {}
   local aItem         := {}
   local aItemsAuto    := {}
-  local aItems        := oInvoices["items"]
+  local aItems        := oInvoice["items"]
   private lMsErroAuto := .F.
   private lMsHelpAuto := .T.
-  
-  aAdd(aHeader,{"C5_TIPO", oInvoices["C5_TIPO"], nil})    
-  aAdd(aHeader,{"C5_CLIENTE", oInvoices["C5_CLIENTE"], nil})
-  aAdd(aHeader,{"C5_LOJACLI", oInvoices["C5_LOJACLI"], nil})
+
+  aAdd(aHeader,{"C5_TIPO", oInvoice["C5_TIPO"], nil})    
+  aAdd(aHeader,{"C5_CLIENTE", oInvoice["C5_CLIENTE"], nil})
+  aAdd(aHeader,{"C5_LOJACLI", oInvoice["C5_LOJACLI"], nil})
   aAdd(aHeader,{"C5_CONDPAG", "002", nil})
   aAdd(aHeader,{"C5_ZTPPAG", "1", nil})
   
   for nI := 1 to len(aItems)
+
+    oItem     := aItems[nI]
+
     aItem := {}
-    aAdd(aItem,{"C6_ITEM", oInvoices["C6_ITEM"], nil})
-    aAdd(aItem,{"C6_PRODUTO", oInvoices["C6_PRODUTO"], nil})
-    aAdd(aItem,{"C6_QTDVEN", oInvoices["C6_QTDVEN"], nil})
-    aAdd(aItem,{"C6_PRCVEN", oInvoices["C6_PRCVEN"], nil})
-    aAdd(aItem,{"C6_PRUNIT", oInvoices["C6_PRUNIT"], nil})
-    aAdd(aItem,{"C6_VALOR", oInvoices["C6_VALOR"], nil})
+
+    aAdd(aItem,{"C6_ITEM", oItem["C6_ITEM"], nil})
+    aAdd(aItem,{"C6_PRODUTO", oItem["C6_PRODUTO"], nil})
+    aAdd(aItem,{"C6_QTDVEN", oItem["C6_QTDVEN"], nil})
+    aAdd(aItem,{"C6_PRCVEN", oItem["C6_PRCVEN"], nil})
+    aAdd(aItem,{"C6_PRUNIT", oItem["C6_PRUNIT"], nil})
+    aAdd(aItem,{"C6_VALOR", oItem["C6_VALOR"], nil})
     aAdd(aItem,{"C6_TES", "502", nil})
-    
+
     aAdd(aItemsAuto, aItem)
   
   next nI
