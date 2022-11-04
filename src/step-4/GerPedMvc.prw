@@ -58,7 +58,6 @@ static function generateOrders(oParambox)
   local aInvoices := getInvoices(oParambox)
   private cNumber := ""
   private cSeries := ""
-
   
   if Len(aInvoices) == 0
     MsgAlert("Nenhuma NF encontrada")
@@ -101,9 +100,9 @@ static function getInvoices(oParambox)
   cQuery += "     %SA1.XFILIAL% AND A1_COD = Z1_CLIENTE AND A1_LOJA = Z1_LOJA AND %SA1.NOTDEL% "
   cQuery += " WHERE %SZ1.XFILIAL% AND "
   if !oParamBox:getValue("optionAll") == .T.
-    cQuery += " Z1_DOC BETWEEN '" + oParamBox:getValue("fromNumber") + "' AND '" + oParamBox:getValue("toNumber") + "' AND "
+    cQuery += " Z1_DOC BETWEEN '" + oParamBox:getValue("fromNumber") + "' AND '" + oParamBox:getValue("toNumber") + "' AND Z1_STATUS <> 1 AND "
   else
-    cQuery += " Z1_STATUS <> '2' AND "
+    cQuery += " Z1_STATUS <> '1' AND "
   endIf    
   cQuery += "   %SZ1.NOTDEL% ""
 
@@ -191,6 +190,10 @@ static function createOrder(oInvoice)
   local nI            := 0
   local cOrderId      := ""
   local cError        := ""
+  local cAlias        := "SZ1990"
+  local cFields       := ""
+  local cWhere        := "%SZ1.XFILIAL% AND Z1_DOC = '" + oInvoice["number"] + "' AND Z1_SERIE = '" + oInvoice["series"] + "'"
+  local oSql          := LibSqlObj():newLibSqlObj()
   local oUtils		    := LibUtilsObj():newLibUtilsObj()
   local aHeader       := {}
   local aItem         := {}
@@ -227,10 +230,14 @@ static function createOrder(oInvoice)
 
   if !lMsErroAuto
     cOrderId := SC5->C5_NUM
+    cFields  := "Z1_STATUS = 1, Z1_PEDNO = '" + cOrderId + "' "
+    oSql:update(cAlias, cFields, cWhere)
     MsgInfo("Pedido gerado com sucesso: " + cOrderId)    
   else
+    cFields  := "Z1_STATUS = 2 "
+    oSql:update(cAlias, cFields, cWhere)
     cError := oUtils:getErroAuto()
     Alert(cError)
   endIf	
 
-return
+return cOrderId
