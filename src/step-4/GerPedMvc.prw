@@ -12,9 +12,11 @@ Geração de pedido de vendas a partir da tela MVC de notas fiscais
 user function GerPedMvc()
  
   local oParamBox := paramBox()
-  
+  local cLog      := ""
+  local oUtils    := LibUtilsObj():newLibUtilsObj()
+
   if oParamBox:show()
-    generateOrders(oParambox)
+    oUtils:msgRun({ || generateOrders(oParambox, @cLog) }, "Gerando pedido(s) ...", "Geração de Pedidos de Vendas")
   endIf
 
 return
@@ -28,8 +30,6 @@ static function paramBox()
   local oParam    := nil 
   local oParamBox := LibParamBoxObj():newLibParamBoxObj("GerPedXml")
 
-  dbSelectArea("SZ1")
-
   oParamBox:setTitle("Parâmetros para geração de Pedido de Venda")
   oParamBox:setValidation({|| ApMsgYesNo("Confirma parâmetros ?")})
 
@@ -41,7 +41,7 @@ static function paramBox()
   oParam:setF3("SZ1")
   oParamBox:addParam(oParam)
 
-  oParam := LibParamObj():newLibParamObj("optionAll", "checkbox", "Gera pedido para todas as pendentes?", ".F.", 120)  
+  oParam := LibParamObj():newLibParamObj("optionAll", "checkbox", "Somente pendentes?", "L", 120)  
   oParamBox:addParam(oParam)
 
   oParamBox:addParam(oParam)
@@ -52,12 +52,11 @@ return oParamBox
 /**
  * Processa a criacao dos pedidos
  */
-static function generateOrders(oParambox)
+static function generateOrders(oParambox, cLog)
 
   local nI        := 0
+  local nCount    := 0
   local aInvoices := getInvoices(oParambox)
-  private cNumber := ""
-  private cSeries := ""
   
   if Len(aInvoices) == 0
     MsgAlert("Nenhuma NF encontrada")
@@ -65,10 +64,14 @@ static function generateOrders(oParambox)
   endIf
 
   for nI := 1 to Len(aInvoices)
-
-    createOrder(aInvoices[nI])
+    
+    If createOrder(aInvoices[nI])
+      nCount++
+    endIf
     
   next nI
+
+  MsgInfo("Foram gerados " + AllTrim(Str(nCount)) + " pedidos de vendas de um total de " + AllTrim(Str(Len(aInvoices))) + " requisições.")
 
 return
 
@@ -84,14 +87,14 @@ static function getInvoices(oParambox)
   
   cQuery := " SELECT "
   cQuery += "   Z1_FILIAL  [FILIAL], "
-  cQuery += "   Z1_LOJA    [LOJA], "
   cQuery += "   Z1_DOC     [NUMBER], "
   cQuery += "   Z1_SERIE   [SERIES], "
   cQuery += "   Z1_EMISSAO [DATE], "
   cQuery += "   Z1_STATUS  [STATUS], "
-  cQuery += "   A1_COD     [CUSTOMER_CODE],"
+  cQuery += "   A1_COD     [CODE_CUSTOMER],"
+  cQuery += "   A1_LOJA    [UNIT_CUSTOMER], "
   cQuery += "   A1_CGC     [CGC], "
-  cQuery += "   A1_NOME    [CUSTOMER_NAME], "
+  cQuery += "   A1_NOME    [NAME_CUSTOMER], "
   cQuery += "   A1_MUN     [CITY], "
   cQuery += "   A1_EST     [STATE], "
   cQuery += "   A1_COND    [PAYMENT_METHOD] "
@@ -99,27 +102,26 @@ static function getInvoices(oParambox)
   cQuery += "   INNER JOIN %SA1.SQLNAME% ON "
   cQuery += "     %SA1.XFILIAL% AND A1_COD = Z1_CLIENTE AND A1_LOJA = Z1_LOJA AND %SA1.NOTDEL% "
   cQuery += " WHERE %SZ1.XFILIAL% AND "
-  if !oParamBox:getValue("optionAll") == .T.
+  if !oParamBox:getValue("optionAll")
     cQuery += " Z1_DOC BETWEEN '" + oParamBox:getValue("fromNumber") + "' AND '" + oParamBox:getValue("toNumber") + "' AND Z1_STATUS <> 1 AND "
   else
-    cQuery += " Z1_STATUS <> '1' AND "
+    cQuery += " Z1_STATUS <> 1 AND "
   endIf    
-  cQuery += "   %SZ1.NOTDEL% ""
+  cQuery += "   %SZ1.NOTDEL% "
 
   oSql:newAlias(cQuery)
 
   while oSql:notIsEof()
     
-    oInvoice               := JsonObject():new()
-    oInvoice["C5_TIPO"]    := "N"  
-    oInvoice["C5_CLIENTE"] := oSql:getValue("CUSTOMER_CODE")
-    oInvoice["C5_LOJACLI"] := oSql:getValue("LOJA")
-    oInvoice["C5_CONDPAG"] := oSql:getValue("PAYMENT_METHOD")
-    oInvoice["number"]     := oSql:getValue("NUMBER")
-    oInvoice["series"]     := oSql:getValue("SERIES")
-
-    getOrderItems(oInvoice)
-
+    oInvoice                  := JsonObject():new()
+    oInvoice["type"]          := "N"  
+    oInvoice["customerCode"]  := oSql:getValue("CODE_CUSTOMER")
+    oInvoice["customerUnit"]  := oSql:getValue("UNIT_CUSTOMER")
+    oInvoice["paymentMethod"] := oSql:getValue("PAYMENT_METHOD")
+    oInvoice["number"]        := oSql:getValue("NUMBER")
+    oInvoice["series"]        := oSql:getValue("SERIES")
+    oInvoice["items"]         := getOrderItems(oInvoice)
+    
     aAdd(aInvoices, oInvoice)
 
     oSql:skip()
@@ -160,14 +162,13 @@ static function getOrderItems(oInvoice)
 
   while oSql:notIsEof()
     
-    oItem               := JsonObject():new()
-    oItem["C6_ITEM"]    := oSql:getValue("ITEM_NO")
-    oItem["C6_PRODUTO"] := oSql:getValue("CODE")
-    oItem["C6_QTDVEN"]  := oSql:getValue("QUANTITY")
-    oItem["C6_PRCVEN"]  := oSql:getValue("PRICE")
-    oItem["C6_PRUNIT"]  := oSql:getValue("PRICE")
-    oItem["C6_VALOR"]   := oSql:getValue("TOTAL")
-    oItem["C6_TES"]     := "502"
+    oItem             := JsonObject():new()
+    oItem["item"]     := oSql:getValue("ITEM_NO")
+    oItem["code"]     := oSql:getValue("CODE")
+    oItem["quantity"] := oSql:getValue("QUANTITY")
+    oItem["price"]    := oSql:getValue("PRICE")
+    oItem["total"]    := oSql:getValue("TOTAL")
+    oItem["tes"]      := "502"
     
     aAdd(aItems, oItem)
       
@@ -175,11 +176,9 @@ static function getOrderItems(oInvoice)
 
   endDo
 
-  oInvoice["items"] := aItems
-
   oSql:close()
     
-return
+return aItems
 
 
 /**
@@ -188,9 +187,10 @@ return
 static function createOrder(oInvoice)
   
   local nI            := 0
+  local lOk           := 0
   local cOrderId      := ""
   local cError        := ""
-  local cAlias        := "SZ1990"
+  local cAlias        := "SZ1"
   local cFields       := ""
   local cWhere        := "%SZ1.XFILIAL% AND Z1_DOC = '" + oInvoice["number"] + "' AND Z1_SERIE = '" + oInvoice["series"] + "'"
   local oSql          := LibSqlObj():newLibSqlObj()
@@ -202,25 +202,25 @@ static function createOrder(oInvoice)
   private lMsErroAuto := .F.
   private lMsHelpAuto := .T.
 
-  aAdd(aHeader,{"C5_TIPO", oInvoice["C5_TIPO"], nil})    
-  aAdd(aHeader,{"C5_CLIENTE", oInvoice["C5_CLIENTE"], nil})
-  aAdd(aHeader,{"C5_LOJACLI", oInvoice["C5_LOJACLI"], nil})
+  aAdd(aHeader,{"C5_TIPO", oInvoice["type"], nil})    
+  aAdd(aHeader,{"C5_CLIENTE", oInvoice["customerCode"], nil})
+  aAdd(aHeader,{"C5_LOJACLI", oInvoice["customerUnit"], nil})
   aAdd(aHeader,{"C5_CONDPAG", "002", nil})
   aAdd(aHeader,{"C5_ZTPPAG", "1", nil})
   
   for nI := 1 to len(aItems)
 
-    oItem     := aItems[nI]
+    oItem := aItems[nI]
 
     aItem := {}
 
-    aAdd(aItem,{"C6_ITEM", oItem["C6_ITEM"], nil})
-    aAdd(aItem,{"C6_PRODUTO", oItem["C6_PRODUTO"], nil})
-    aAdd(aItem,{"C6_QTDVEN", oItem["C6_QTDVEN"], nil})
-    aAdd(aItem,{"C6_PRCVEN", oItem["C6_PRCVEN"], nil})
-    aAdd(aItem,{"C6_PRUNIT", oItem["C6_PRUNIT"], nil})
-    aAdd(aItem,{"C6_VALOR", oItem["C6_VALOR"], nil})
-    aAdd(aItem,{"C6_TES", "502", nil})
+    aAdd(aItem,{"C6_ITEM", oItem["item"], nil})
+    aAdd(aItem,{"C6_PRODUTO", oItem["code"], nil})
+    aAdd(aItem,{"C6_QTDVEN", oItem["quantity"], nil})
+    aAdd(aItem,{"C6_PRCVEN", oItem["price"], nil})
+    aAdd(aItem,{"C6_PRUNIT", oItem["price"], nil})
+    aAdd(aItem,{"C6_VALOR", oItem["total"], nil})
+    aAdd(aItem,{"C6_TES", oItem["tes"], nil})
 
     aAdd(aItemsAuto, aItem)
   
@@ -232,12 +232,12 @@ static function createOrder(oInvoice)
     cOrderId := SC5->C5_NUM
     cFields  := "Z1_STATUS = 1, Z1_PEDNO = '" + cOrderId + "' "
     oSql:update(cAlias, cFields, cWhere)
-    MsgInfo("Pedido gerado com sucesso: " + cOrderId)    
+    lOk := .T.
   else
     cFields  := "Z1_STATUS = 2 "
     oSql:update(cAlias, cFields, cWhere)
     cError := oUtils:getErroAuto()
-    Alert(cError)
+    lOk := .F.
   endIf	
 
-return cOrderId
+return lOk
