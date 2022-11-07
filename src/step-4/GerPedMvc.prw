@@ -232,12 +232,27 @@ static function createOrder(oInvoice)
     cOrderId := SC5->C5_NUM
     cFields  := "Z1_STATUS = 1, Z1_PEDNO = '" + cOrderId + "' "
     oSql:update(cAlias, cFields, cWhere)
+
+    if SZ1->(DbSeek(FWxFilial('SZ1') +  oInvoice["number"] + oInvoice["series"]))
+      RecLock('SZ1', .F.)
+      SZ1->Z1_LOG := ""
+      SZ1->(MsUnlock())
+    endIf
+
     lOk := .T.
   else
     cFields  := "Z1_STATUS = 2 "
     oSql:update(cAlias, cFields, cWhere)
     cError := oUtils:getErroAuto()
+
+    if SZ1->(DbSeek(FWxFilial('SZ1') +  oInvoice["number"] + oInvoice["series"]))
+      RecLock('SZ1', .F.)
+      SZ1->Z1_LOG := cError
+      SZ1->(MsUnlock())
+    endIf
+    
     lOk := .F.
+  
   endIf	
 
 return lOk
