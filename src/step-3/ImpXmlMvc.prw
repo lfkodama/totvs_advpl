@@ -1,6 +1,7 @@
 #include "totvs.ch"
 #include "rwmake.ch"
 #include "fwmvcdef.ch"
+#include "training.ch"
 
 #define MVC_MODEL_STRUCT 1
 #define MVC_VIEW_STRUCT 2
@@ -135,7 +136,7 @@ return .T.
  * Define as legendas do grid
  */
 static function addBrowseLegends(oBrowse)
-  oBrowse:addLegend("Z1_STATUS = '0'", "BR_AMARELO", "Aguardando processamento")
-  oBrowse:addLegend("Z1_STATUS = '1'", "BR_VERDE", "Pedido processado")
-  oBrowse:addLegend("Z1_STATUS = '2'", "BR_VERMELHO", "Erro de processamento")
+  oBrowse:addLegend("Z1_STATUS = '" + XML_NF_STATUS_WAITING + "'", "BR_AMARELO", "Aguardando processamento")
+  oBrowse:addLegend("Z1_STATUS = '" + XML_NF_STATUS_OK + "'", "BR_VERDE", "Pedido processado")
+  oBrowse:addLegend("Z1_STATUS = '" + XML_NF_STATUS_ERROR + "'", "BR_VERMELHO", "Erro de processamento")
 return

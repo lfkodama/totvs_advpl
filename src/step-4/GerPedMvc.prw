@@ -1,5 +1,6 @@
 #include "totvs.ch"
 #include "rwmake.ch"
+#include "training.ch"
 
 
 /*/{Protheus.doc} GerPedMvc
@@ -103,9 +104,9 @@ static function getInvoices(oParambox)
   cQuery += "     %SA1.XFILIAL% AND A1_COD = Z1_CLIENTE AND A1_LOJA = Z1_LOJA AND %SA1.NOTDEL% "
   cQuery += " WHERE %SZ1.XFILIAL% AND "
   if !oParamBox:getValue("optionAll")
-    cQuery += " Z1_DOC BETWEEN '" + oParamBox:getValue("fromNumber") + "' AND '" + oParamBox:getValue("toNumber") + "' AND Z1_STATUS <> 1 AND "
+    cQuery += " Z1_DOC BETWEEN '" + oParamBox:getValue("fromNumber") + "' AND '" + oParamBox:getValue("toNumber") + "' AND Z1_STATUS <> '" + XML_NF_STATUS_OK + "' AND "
   else
-    cQuery += " Z1_STATUS <> 1 AND "
+    cQuery += " Z1_STATUS <> '" + XML_NF_STATUS_OK + "' AND "
   endIf    
   cQuery += "   %SZ1.NOTDEL% "
 
@@ -186,8 +187,9 @@ return aItems
  */
 static function createOrder(oInvoice)
   
-  local nI            := 0
-  local lOk           := 0
+  local nI            := 0  
+  local lOk           := .F.
+  local cStatus       := ""
   local cOrderId      := ""
   local cError        := ""
   local cAlias        := "SZ1"
@@ -228,31 +230,20 @@ static function createOrder(oInvoice)
 
   MsExecAuto({|x,y,z| MATA410(x,y,z)}, aHeader, aItemsAuto, 3)
 
-  if !lMsErroAuto
-    cOrderId := SC5->C5_NUM
-    cFields  := "Z1_STATUS = 1, Z1_PEDNO = '" + cOrderId + "' "
-    oSql:update(cAlias, cFields, cWhere)
-
-    if SZ1->(DbSeek(FWxFilial('SZ1') +  oInvoice["number"] + oInvoice["series"]))
-      RecLock('SZ1', .F.)
-      SZ1->Z1_LOG := ""
-      SZ1->(MsUnlock())
-    endIf
-
-    lOk := .T.
+  if lMsErroAuto
+    cStatus := XML_NF_STATUS_ERROR
+    cError  := oUtils:getErroAuto()    
   else
-    cFields  := "Z1_STATUS = 2 "
-    oSql:update(cAlias, cFields, cWhere)
-    cError := oUtils:getErroAuto()
-
-    if SZ1->(DbSeek(FWxFilial('SZ1') +  oInvoice["number"] + oInvoice["series"]))
-      RecLock('SZ1', .F.)
-      SZ1->Z1_LOG := cError
-      SZ1->(MsUnlock())
-    endIf
-    
-    lOk := .F.
-  
+    cOrderId := SC5->C5_NUM
+    cStatus  := XML_NF_STATUS_OK
+    lOk      := .T.
   endIf	
+
+  SZ1->(DbSeek(FWxFilial('SZ1') +  oInvoice["number"] + oInvoice["series"]))
+  SZ1->(RecLock('SZ1', .F.))
+    SZ1->Z1_STATUS := cStatus
+    SZ1->Z1_PEDNO  := cOrderId
+    SZ1->Z1_LOG    := cError
+  SZ1->(MsUnlock())
 
 return lOk
