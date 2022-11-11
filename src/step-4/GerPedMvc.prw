@@ -192,10 +192,7 @@ static function createOrder(oInvoice)
   local cStatus       := ""
   local cOrderId      := ""
   local cError        := ""
-  local cAlias        := "SZ1"
-  local cFields       := ""
-  local cWhere        := "%SZ1.XFILIAL% AND Z1_DOC = '" + oInvoice["number"] + "' AND Z1_SERIE = '" + oInvoice["series"] + "'"
-  local oSql          := LibSqlObj():newLibSqlObj()
+  local cPedMvc       := "N"
   local oUtils		    := LibUtilsObj():newLibUtilsObj()
   local aHeader       := {}
   local aItem         := {}
@@ -232,10 +229,11 @@ static function createOrder(oInvoice)
 
   if lMsErroAuto
     cStatus := XML_NF_STATUS_ERROR
-    cError  := oUtils:getErroAuto()    
+    cError  := oUtils:getErroAuto()
   else
     cOrderId := SC5->C5_NUM
     cStatus  := XML_NF_STATUS_OK
+    cPedMvc  := "S"
     lOk      := .T.
   endIf	
 
@@ -245,5 +243,10 @@ static function createOrder(oInvoice)
     SZ1->Z1_PEDNO  := cOrderId
     SZ1->Z1_LOG    := cError
   SZ1->(MsUnlock())
+
+  SC5->(DbSeek(FWxFilial('SC5') + cOrderId))
+  SC5->(RecLock('SC5', .F.))
+    SC5->C5_ZZMVCPD := cPedMvc
+  SC5->(MsUnlock())
 
 return lOk
