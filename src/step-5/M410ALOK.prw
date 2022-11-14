@@ -6,10 +6,9 @@
 Validação das alterações nos pedidos de vendas gerados pela tela MVC
     
 @author fernandokodama
-@since 10/10/2022
+@since 10/11/2022
 /*/
 user function M410ALOK() 
-  local cError := ""
   local cIsXmlGenerated := ""
 
   SC5->(DbSeek(FWxFilial('SC5') + SC5->C5_NUM))
@@ -18,13 +17,13 @@ user function M410ALOK()
   
   if cIsXmlGenerated == "S"
     if !hasPermission() 
-      cError := "O usuário não tem permissão para alterar esse pedido gerado via XML."
-      MsgInfo(cError)
-      return
+      MsgInfo("O usuário não tem permissão para alterar esse pedido gerado via XML.")
+      return .F.
     endIf  
   endIf
   
-return 
+return .T.
+
 
 /**
  * Função para verificar se o usuário do parâmetro SX6 é o mesmo que está logado
