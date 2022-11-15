@@ -11,8 +11,6 @@ Validação das alterações nos pedidos de vendas gerados pela tela MVC
 user function M410ALOK() 
   local cIsXmlGenerated := ""
 
-  SC5->(DbSeek(FWxFilial('SC5') + SC5->C5_NUM))
-  
   cIsXmlGenerated := SC5->C5_ZZMVCPD
   
   if cIsXmlGenerated == "S"
