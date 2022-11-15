@@ -192,7 +192,6 @@ static function createOrder(oInvoice)
   local cStatus       := ""
   local cOrderId      := ""
   local cError        := ""
-  local cPedMvc       := "N"
   local oUtils		    := LibUtilsObj():newLibUtilsObj()
   local aHeader       := {}
   local aItem         := {}
@@ -206,6 +205,7 @@ static function createOrder(oInvoice)
   aAdd(aHeader,{"C5_LOJACLI", oInvoice["customerUnit"], nil})
   aAdd(aHeader,{"C5_CONDPAG", "002", nil})
   aAdd(aHeader,{"C5_ZTPPAG", "1", nil})
+  aAdd(aHeader,{"C5_ZZMVCPD", "S", Nil})
   
   for nI := 1 to len(aItems)
 
@@ -233,20 +233,15 @@ static function createOrder(oInvoice)
   else
     cOrderId := SC5->C5_NUM
     cStatus  := XML_NF_STATUS_OK
-    cPedMvc  := "S"
     lOk      := .T.
   endIf	
 
+  SZ1->(DbSetOrder(1))
   SZ1->(DbSeek(FWxFilial('SZ1') +  oInvoice["number"] + oInvoice["series"]))
   SZ1->(RecLock('SZ1', .F.))
     SZ1->Z1_STATUS := cStatus
     SZ1->Z1_PEDNO  := cOrderId
     SZ1->Z1_LOG    := cError
   SZ1->(MsUnlock())
-
-  SC5->(DbSeek(FWxFilial('SC5') + cOrderId))
-  SC5->(RecLock('SC5', .F.))
-    SC5->C5_ZZMVCPD := cPedMvc
-  SC5->(MsUnlock())
 
 return lOk
