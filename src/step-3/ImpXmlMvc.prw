@@ -50,7 +50,8 @@ static function menuDef()
   aAdd(aOptions, {"Visualizar", cViewId, 0, 2})
   aAdd(aOptions, {"Importar", "u_ImportXml", 0, 3})
   aAdd(aOptions, {"Gerar Pedido", "u_GerPedMvc", 0, 4})
-  aAdd(aOptions, {"Excluir", cViewId, 0, 5})
+  aAdd(aOptions, {"Relatório NF", "u_ReportMvc", 0, 5})
+  aAdd(aOptions, {"Excluir", cViewId, 0, 6})
   
 return aOptions
 

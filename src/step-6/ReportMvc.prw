@@ -31,9 +31,25 @@ return
  * Cria as seções do relatório
  */
 static function createSections()
+  
   oHeaderSection := TRSection():new(oReport)
 
-  TRCell():new(oHeaderSection, "number", nil, "", 9)
+  TRCell():new(oHeaderSection, "number", nil, "Nro. NF", 9)
+  TRCell():new(oHeaderSection, "series", nil, "Série", 3)
+  TRCell():new(oHeaderSection, "date", nil, "Dt. Emissão", 10)
+  TRCell():new(oHeaderSection, "customer", nil, "Cód. Cliente", 6)
+  TRCell():new(oHeaderSection, "customerName", nil, "Nome/Razão Social", 40)
+  TRCell():new(oHeaderSection, "total", nil, "Valor Total da NF", 20)
+
+  oItemSection := TRSection():new(oReport)
+
+  TRCell():new(oItemSection, "item", nil, "Item da NF", 3)
+  TRCell():new(oItemSection, "productCode", nil, "Cód. do Produto", 15)
+  TRCell():new(oItemSection, "productDescription", nil, "Descrição do Produto", 60)
+  TRCell():new(oItemSection, "cfop", nil, "CFOP", 5)
+  TRCell():new(oItemSection, "quantity", nil, "Quantidade", 15)
+  TRCell():new(oItemSection, "price", nil, "Valor Unit.", 28)
+  TRCell():new(oItemSection, "total", nil, "Valor Total", 28)
 
 return
 
@@ -49,6 +65,14 @@ static function paramBox()
   oParamBox:setTitle("Parâmetros para geração do relatório de notas fiscais")
   oParamBox:setValidation({|| ApMsgYesNo("Confirma parâmetros ?")})
 
+  oParam := LibParamObj():newLibParamObj("startDate", "get", "Data Inicial", "D", 60, 8) 
+	oParam:setRequired(.T.)
+	oParamBox:addParam(oParam)
+	
+	oParam := LibParamObj():newLibParamObj("endDate", "get", "Data Final", "D", 60, 8)
+	oParam:setRequired(.T.) 
+	oParamBox:addParam(oParam)
+  
   oParam := LibParamObj():newLibParamObj("fromNumber", "get", "NF Inicial", "C", 60, Len(SZ1->Z1_DOC))
   oParam:setF3("SZ1")
   oParamBox:addParam(oParam)
@@ -82,16 +106,18 @@ static function runReport(oParamBox)
   local oInvoice    := nil
   local oUtils      := LibUtilsObj():newLibUtilsObj()
   
+  createSections()
 
   oUtils:msgRun({ || oSql := createSql() }, "Lendo registros ...")
 
   while oSql:notIsEof()
 
     oInvoice := JsonObject():new()
-    oInvoice["number"] := oSql:getValue("F2_DOC")
-    oInvoice["series"] := oSql:getValue("AllTrim(F2_SERIE)")
-    oInvoice["customer"] := oSql:getValue("F2_CLIENTE")
-    oInvoice["date"] := oSql:getValue("F2_EMISSAO")
+    oInvoice["number"] := oSql:getValue("NUMBER")
+    oInvoice["series"] := oSql:getValue("SERIES")
+    oInvoice["customer"] := oSql:getValue("CUSTOMER")
+    oInvoice["customerName"] := oSql:getValue("CUSTOMER_NAME")
+    oInvoice["date"] := oSql:getValue("DATE")
     
     aAdd(aInvoices, oInvoice)
 
@@ -112,9 +138,14 @@ static function createSql()
   local cToCustomer   := oParamBox:getValue("toCustomer")
 	local oSql   	      := LibSqlObj():newLibSqlObj()	
 
-  cQuery := " SELECT "
-  cQuery += "     F2_DOC, F2_SERIE, F2_CLIENTE, F2_EMISSAO "
+  cQuery := " SELECT F2_DOC [NUMBER], "
+  cQuery += "        F2_SERIE [SERIES], "
+  cQUery += "        F2_CLIENTE [CUSTOMER], "
+  cQUery += "        A1_NAME [CUSTOMER_NAME], "
+  cQuery += "        F2_EMISSAO [DATE] "
   cQuery += "   FROM %SF2.SQLNAME% "
+  cQuery += "     INNER JOIN %SA1.SQLNAME% ON "
+  cQuery += "       %SA1.XFILIAL% AND F2_CLIENTE = A1_COD AND %SA1.NOTDEL% "  
   cQuery += "   WHERE %SF2.XFILIAL% AND "
   cQuery += "         F2_DOC BETWEEN '" + cFromNumber + "' AND '" + cToNumber + "' AND "
   cQuery += "         F2_CLIENTE BETWEEN '" + cFromCustomer + "' AND '" + cToCustomer + "' AND "
