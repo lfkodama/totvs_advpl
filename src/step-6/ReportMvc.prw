@@ -7,9 +7,8 @@ Geração de relatório analítico/sintético a partir do Browse MVC
 @author fernandokodama
 @since 17/11/2022
 /*/
-user function MvcReport()
+user function ReportMvc()
   
-  local oReport      := nil
   local oParamBox    := paramBox()
   local oUtils       := LibUtilsObj():newLibUtilsObj()
   local cName        := "MvcReport"
@@ -17,6 +16,7 @@ user function MvcReport()
   local bParams      := { || oParamBox:show() }
   local bRunReport   := { || runReport() }
   local cDescription := "Este relatório irá listas as notas fiscais com opção analítico (listando a seção de itens da nota fiscal) ou sintético (listando somente o cabeçalho da nota fiscal"
+  private oReport      := nil
 
   oReport := TReport():new(cName, cTitle, bParams, bRunReport, cDescription)
 
@@ -34,22 +34,22 @@ static function createSections()
   
   oHeaderSection := TRSection():new(oReport)
 
-  TRCell():new(oHeaderSection, "number", nil, "Nro. NF", 9)
-  TRCell():new(oHeaderSection, "series", nil, "Série", 3)
-  TRCell():new(oHeaderSection, "date", nil, "Dt. Emissão", 10)
-  TRCell():new(oHeaderSection, "customer", nil, "Cód. Cliente", 6)
-  TRCell():new(oHeaderSection, "customerName", nil, "Nome/Razão Social", 40)
-  TRCell():new(oHeaderSection, "total", nil, "Valor Total da NF", 20)
+  TRCell():new(oHeaderSection, "number", nil, "Nro. NF", nil, 9)
+  TRCell():new(oHeaderSection, "series", nil, "Série", nil, 3)
+  TRCell():new(oHeaderSection, "date", nil, "Dt. Emissão", nil,  10)
+  TRCell():new(oHeaderSection, "customer", nil, "Cód. Cliente", nil, 6)
+  TRCell():new(oHeaderSection, "customerName", nil, "Nome/Razão Social", nil, 40)
+  TRCell():new(oHeaderSection, "total", nil, "Valor Total da NF", nil, 20)
 
   oItemSection := TRSection():new(oReport)
 
-  TRCell():new(oItemSection, "item", nil, "Item da NF", 3)
-  TRCell():new(oItemSection, "productCode", nil, "Cód. do Produto", 15)
-  TRCell():new(oItemSection, "productDescription", nil, "Descrição do Produto", 60)
-  TRCell():new(oItemSection, "cfop", nil, "CFOP", 5)
-  TRCell():new(oItemSection, "quantity", nil, "Quantidade", 15)
-  TRCell():new(oItemSection, "price", nil, "Valor Unit.", 28)
-  TRCell():new(oItemSection, "total", nil, "Valor Total", 28)
+  TRCell():new(oItemSection, "item", nil, "Item da NF", nil, 3)
+  TRCell():new(oItemSection, "productCode", nil, "Cód. do Produto", nil, 15)
+  TRCell():new(oItemSection, "productDescription", nil, "Descrição do Produto", nil, 60)
+  TRCell():new(oItemSection, "cfop", nil, "CFOP", nil, 5)
+  TRCell():new(oItemSection, "quantity", nil, "Quantidade", nil, 15)
+  TRCell():new(oItemSection, "price", nil, "Valor Unit.", nil, 28)
+  TRCell():new(oItemSection, "total", nil, "Valor Total", nil, 28)
 
 return
 
@@ -108,7 +108,7 @@ static function runReport(oParamBox)
   
   createSections()
 
-  oUtils:msgRun({ || oSql := createSql() }, "Lendo registros ...")
+  oUtils:msgRun({ || oSql := createSql(oParambox) }, "Lendo registros ...")
 
   while oSql:notIsEof()
 
@@ -129,8 +129,9 @@ return
 /**
  * Cria o SQL do Relatório
  */
-static function createSql()
+static function createSql(oParamBox)
 
+  local cAux := ""  
 	local cQuery 	      := ""
 	local cFromNumber   := oParamBox:getValue("fromNumber")
 	local cToNumber     := oParamBox:getValue("toNumber")
@@ -141,7 +142,7 @@ static function createSql()
   cQuery := " SELECT F2_DOC [NUMBER], "
   cQuery += "        F2_SERIE [SERIES], "
   cQUery += "        F2_CLIENTE [CUSTOMER], "
-  cQUery += "        A1_NAME [CUSTOMER_NAME], "
+  cQUery += "        A1_NOME [CUSTOMER_NAME], "
   cQuery += "        F2_EMISSAO [DATE] "
   cQuery += "   FROM %SF2.SQLNAME% "
   cQuery += "     INNER JOIN %SA1.SQLNAME% ON "
@@ -154,4 +155,7 @@ static function createSql()
 
   oSql:newAlias(cQuery)
 
-return oSql  
+  cAux := oSql:toJson()
+  MsgInfo(cAux)
+
+return oSql
