@@ -17,10 +17,14 @@ user function ReportMvc()
   local bRunReport   := { || runReport() }
   local cDescription := "Este relatório irá listas as notas fiscais com opção analítico (listando a seção de itens da nota fiscal) ou sintético (listando somente o cabeçalho da nota fiscal"
   private oReport      := nil
+  private oHeaderSection := nil
+  private oItemSection := nil
 
   oReport := TReport():new(cName, cTitle, bParams, bRunReport, cDescription)
+  oReport:SetLandScape(.T.)
 
   if oParamBox:show()
+    createSections()
     oUtils:msgRun({ || runReport(oParambox) }, "Gerando relatório ...", "Geração de Relatório de Notas Fiscais")
   endIf
 
@@ -31,7 +35,7 @@ return
  * Cria as seções do relatório
  */
 static function createSections()
-  
+
   oHeaderSection := TRSection():new(oReport)
 
   TRCell():new(oHeaderSection, "number", nil, "Nro. NF", nil, 9)
@@ -99,16 +103,17 @@ return oParamBox
 
 
 static function runReport(oParamBox)
-  
-  local cReportType := oParamBox:getValue("option")
-  local oSql	      := nil
-  local aInvoices   := {}
-  local oInvoice    := nil
-  local oUtils      := LibUtilsObj():newLibUtilsObj()
-  
-  createSections()
 
-  oUtils:msgRun({ || oSql := createSql(oParambox) }, "Lendo registros ...")
+  local cReportType := oParamBox:getValue("option")
+  local oSql        := createSql(oParamBox)
+  local aInvoices   := {}
+  local aItems      := {}
+  local oInvoice    := nil
+
+  oReport:setMeter(oSql:count())
+	oReport:startPage()
+	
+  oSql:goTop()
 
   while oSql:notIsEof()
 
@@ -118,12 +123,55 @@ static function runReport(oParamBox)
     oInvoice["customer"] := oSql:getValue("CUSTOMER")
     oInvoice["customerName"] := oSql:getValue("CUSTOMER_NAME")
     oInvoice["date"] := oSql:getValue("DATE")
-    
+    oInvoice["total"] := oSql:getValue("TOTAL")
+
+    oHeaderSection:cell("number"):setValue(oInvoice["number"])
+    oHeaderSection:cell("series"):setValue(oInvoice["series"])
+  
     aAdd(aInvoices, oInvoice)
+
+    if cReportType == "A"
+      getItemsData(oSql, oInvoice["number"], oInvoice["series"])
+    endIf
+
+    oInvoice["items"] := aItems
+    
+    oInvoice:printLine()
+
+    oSql:skip()
 
   endDo
 
+  oSql:close()
+
 return
+
+
+/**
+ * Busca os itens de produto da NF
+ */
+static function getItemsData(oSql, cNumber, cSeries) 
+  
+  local oItem  := nil
+  local aItems := {}
+  
+  while (oSql:isNotEof() .and. (oSql:getValue("NUMBER") == cNumber .and. oSql:getValue("SERIES") == cSeries))
+  
+      oItem := JsonObject():new()
+      oItem["item"] := oSql:getValue("ITEM")
+      oItem["productCode"] := oSql:getValue("PRODUCT_CODE")
+      oItem["productDescription"] := oSql:getValue("PRODUCT_DESCRIPTION")
+      oItem["quantity"] := oSql:getValue("QUANTITY")
+      oItem["price"] := oSql:getValue("PRICE")
+      oItem["productTotal"] := oSql:getValue("PRODUCT_TOTAL")
+  
+      aAdd(aItems, oItem)
+      
+      oSql:skip()
+
+    endDo    
+
+return aItems
 
 
 /**
@@ -131,7 +179,6 @@ return
  */
 static function createSql(oParamBox)
 
-  local cAux := ""  
 	local cQuery 	      := ""
 	local cFromNumber   := oParamBox:getValue("fromNumber")
 	local cToNumber     := oParamBox:getValue("toNumber")
@@ -142,20 +189,30 @@ static function createSql(oParamBox)
   cQuery := " SELECT F2_DOC [NUMBER], "
   cQuery += "        F2_SERIE [SERIES], "
   cQUery += "        F2_CLIENTE [CUSTOMER], "
-  cQUery += "        A1_NOME [CUSTOMER_NAME], "
-  cQuery += "        F2_EMISSAO [DATE] "
+  cQuery += "        A1_NOME [CUSTOMER_NAME], "
+  cQuery += "        F2_EMISSAO [DATE], "
+  cQuery += "        F2_VALBRUT [TOTAL], "
+  cQuery += "        D2_ITEM [ITEM], "
+  cQuery += "        D2_COD [PRODUCT_CODE], "
+  cQuery += "        B1_DESC [PRODUCT_DESCRIPTION], "
+  cQuery += "        D2_QUANT [QUANTITY], "
+  cQuery += "        D2_PRCVEN [PRICE], "
+  cQuery += "        D2_TOTAL [PRODUCT_TOTAL] "
   cQuery += "   FROM %SF2.SQLNAME% "
   cQuery += "     INNER JOIN %SA1.SQLNAME% ON "
-  cQuery += "       %SA1.XFILIAL% AND F2_CLIENTE = A1_COD AND %SA1.NOTDEL% "  
+  cQuery += "       %SA1.XFILIAL% AND F2_CLIENTE = A1_COD AND %SA1.NOTDEL% " 
+  cQuery += "       INNER JOIN %SD2.SQLNAME% ON "
+  cQuery += "         %SD2.XFILIAL% AND D2_DOC = F2_DOC AND D2_SERIE = F2_SERIE AND %SD2.NOTDEL% "
+  cQuery += "       INNER JOIN %SB1.SQLNAME% ON "
+  cQuery += "         %SB1.XFILIAL% AND B1_COD = D2_COD AND %SB1.NOTDEL% " 
   cQuery += "   WHERE %SF2.XFILIAL% AND "
   cQuery += "         F2_DOC BETWEEN '" + cFromNumber + "' AND '" + cToNumber + "' AND "
   cQuery += "         F2_CLIENTE BETWEEN '" + cFromCustomer + "' AND '" + cToCustomer + "' AND "
   cQuery += "         %SF2.NOTDEL%
-  cQuery += " ORDER BY F2_DOC, F2_SERIE, F2_EMISSAO "
+  cQuery += " ORDER BY F2_EMISSAO, F2_DOC, F2_SERIE, D2_ITEM "
 
   oSql:newAlias(cQuery)
 
-  cAux := oSql:toJson()
-  MsgInfo(cAux)
+  return oSql
 
-return oSql
+
