@@ -22,10 +22,11 @@ user function ReportMvc()
 
   oReport := TReport():new(cName, cTitle, bParams, bRunReport, cDescription) 
   oReport:SetLandScape(.T.)
-  oReport:SetTotalInLine(.F.)
+  oReport:init()
 
   if oParamBox:show()
     oUtils:msgRun({ || runReport(oParamBox) }, "Gerando relatório ...", "Geração de Relatório de Notas Fiscais")
+    //oReport:PrintDialog()
   endIf
 
 return
@@ -37,19 +38,11 @@ return
 static function paramBox()
   
   local oParam    := nil 
-  local oParamBox := LibParamBoxObj():newLibParamBoxObj("MvcReport")
+  local oParamBox := LibParamBoxObj():newLibParamBoxObj("ReportMvc")
 
   oParamBox:setTitle("Parâmetros para geração do relatório de notas fiscais")
   oParamBox:setValidation({|| ApMsgYesNo("Confirma parâmetros ?")})
 
-  oParam := LibParamObj():newLibParamObj("startDate", "get", "Data Inicial", "D", 60, 8) 
-	oParam:setRequired(.T.)
-	oParamBox:addParam(oParam)
-	
-	oParam := LibParamObj():newLibParamObj("endDate", "get", "Data Final", "D", 60, 8)
-	oParam:setRequired(.T.) 
-	oParamBox:addParam(oParam)
-  
   oParam := LibParamObj():newLibParamObj("fromNumber", "get", "NF Inicial", "C", 60, Len(SZ1->Z1_DOC))
   oParam:setF3("SZ1")
   oParamBox:addParam(oParam)
@@ -66,6 +59,14 @@ static function paramBox()
   oParam:setF3("SA1")
   oParamBox:addParam(oParam)
 
+  oParam := LibParamObj():newLibParamObj("startDate", "get", "Data Inicial", "D", 60, 8) 
+	oParam:setRequired(.T.)
+	oParamBox:addParam(oParam)
+	
+	oParam := LibParamObj():newLibParamObj("endDate", "get", "Data Final", "D", 60, 8)
+	oParam:setRequired(.T.) 
+	oParamBox:addParam(oParam)
+  
   oParam := LibParamObj():newLibParamObj("option", "combo", "Tipo do Relatório", "C", 60)
   oParam:setValues({"A=Analítico","S=Sintético"})
   oParamBox:addParam(oParam)    
@@ -81,16 +82,16 @@ return oParamBox
 static function runReport(oParamBox)
 
   local nI          := 0
-  local oSql        := createSql(oParamBox)
   local aInvoices   := {}
   local aItems      := {}
   local oInvoice    := nil
-
+  local oSql        := createSql(oParamBox)
+  
   createSections()
   
   oReport:setMeter(oSql:count())
 	oReport:startPage()
-	
+
   oSql:goTop()
 
   while oSql:notIsEof()
@@ -118,13 +119,15 @@ static function runReport(oParamBox)
     
     if oParamBox:getValue("option") == "A"
 
-      getItemsData(oInvoice["number"], oInvoice["series"])
+      aItems := getItemsData(oInvoice["number"], oInvoice["series"])
 
       oInvoice["items"] := aItems
 
       oItemSection:init()
 
       for nI := 1 to Len(aItems)
+        oItem := aItems[nI]
+
         oItemSection:cell("item"):setValue(oItem["item"])
         oItemSection:cell("productCode"):setValue(oItem["productCode"])
         oItemSection:cell("productDescription"):setValue(oItem["productDescription"])
@@ -134,17 +137,19 @@ static function runReport(oParamBox)
         oItemSection:printLine()
       next nI   
 
-    oSql:skip()
+      TRFunction():New(oItemSection:cell("productTotal"), nil, "SUM",,"Total dos Produtos",,,.F.,.T.)
     
     endIf
-    
+    oReport:incMeter() 
+    oSql:skip()
+  
   endDo
-
+  oReport:endPage()
   oSql:close()
 
   oItemSection:finish()
   oHeaderSection:finish()
-  oReport:endPage()
+  oReport:finish()
 
 return
 
@@ -154,7 +159,9 @@ return
  */
 static function createSections()
 
-  oHeaderSection := TRSection():new(oReport)
+  oHeaderSection := TRSection():New(oReport)
+  oHeaderSection:lHeaderSection := .F.
+  oHeaderSection:lAutoSize := .T.
 
   TRCell():new(oHeaderSection, "number", nil, "Nro. NF", nil, 9)
   TRCell():new(oHeaderSection, "series", nil, "Série", nil, 3)
@@ -163,7 +170,8 @@ static function createSections()
   TRCell():new(oHeaderSection, "customerName", nil, "Nome/Razão Social", nil, 40)
   TRCell():new(oHeaderSection, "total", nil, "Valor Total da NF", nil, 20)
 
-  oItemSection := TRSection():new(oReport)
+  oItemSection := TRSection():New(oReport)
+  oItemSection:lAutoSize := .T.
 
   TRCell():new(oItemSection, "item", nil, "Item da NF", nil, 3)
   TRCell():new(oItemSection, "productCode", nil, "Cód. do Produto", nil, 15)
@@ -171,7 +179,7 @@ static function createSections()
   TRCell():new(oItemSection, "cfop", nil, "CFOP", nil, 5)
   TRCell():new(oItemSection, "quantity", nil, "Quantidade", nil, 15)
   TRCell():new(oItemSection, "price", nil, "Valor Unit.", nil, 28)
-  TRCell():new(oItemSection, "total", nil, "Valor Total", nil, 28)
+  TRCell():new(oItemSection, "productTotal", nil, "Valor Total", nil, 28)
 
 return
 
@@ -180,7 +188,7 @@ return
  * Cria o SQL do Relatório
  */
 static function createSql(oParamBox)
-
+  
 	local cQuery 	      := ""
 	local cFromNumber   := oParamBox:getValue("fromNumber")
 	local cToNumber     := oParamBox:getValue("toNumber")
